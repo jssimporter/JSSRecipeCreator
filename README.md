@@ -1,4 +1,4 @@
-JSSRecipeCreator
+JSSRecipeCreator (Ballin' Dubstep)
 =================
 
 This brief script allows one to rapidly make JSS recipes based on a set of template files.
@@ -50,3 +50,7 @@ What do you do if you have a more annoying recipe? One that involves extension a
 At this point, get as far as you can with the automated creation and then hand-edit! Or add in handling to this project and send me a pull-request. I would say that *most* of my recipes can be processed with JSSRecipeCreator, and those few that are problems often require iterating through several test versions anyway.
 
 Enjoy!
+
+Ballin' Dubstep?
+=================
+GitHub offers a project name if you don't want to come up with one. For this, it suggested 'ballin-dubstep', which is a pretty sweet name. Just not very descriptive of what this does.

@@ -52,7 +52,7 @@ class JSSRecipeCreator(object):
         parent_recipe = self.read_recipe(parent_recipe_path)
 
         # Determine our recipe's filename.
-        self.recipe_name = parent_recipe_name.replace('pkg', 'jss')
+        self.recipe_name = parent_recipe_name.replace('.pkg.', '.jss.')
         self.recipe_name = self.prompt_for_value('Recipe Filename',
                                                  [self.recipe_name],
                                                  self.recipe_name)
@@ -60,7 +60,7 @@ class JSSRecipeCreator(object):
         # Determine our recipe's identifier, and parent.
         parent_recipe_identifier = parent_recipe['Identifier']
         self.recipe_identifier = parent_recipe_identifier.replace(
-            'pkg', 'jss')
+            '.pkg.', '.jss.')
         self.recipe_identifier = self.prompt_for_value('Recipe Identifier',
                                                        [self.recipe_identifier],
                                                        self.recipe_identifier)
