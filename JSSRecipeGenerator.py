@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
+import argparse
 import os.path
 import sys
 from xml.etree import ElementTree
@@ -40,7 +41,7 @@ __version__ = '0.0.2'
 
 class JSSRecipeCreator(object):
     """Quickly build a jss recipe from a parent recipe."""
-    def __init__(self, parent_recipe_path):
+    def __init__(self, parent_recipe_path, recipe_template_path):
         """Given a path to a parent recipe, pull all needed information.
 
         parent_recipe_path should be a path to a *pkg* recipe.
@@ -95,7 +96,7 @@ class JSSRecipeCreator(object):
 
         # Check for any defaults set in RecipeTemplate (Put an un-escaped
         # category name in for your value).
-        recipe_template = self.read_recipe(DEFAULT_RECIPE_TEMPLATE)
+        recipe_template = self.read_recipe(recipe_template_path)
         categories = [cat.name for cat in j.Category()]
 
         recipe_template_pkg_category = recipe_template['Input']['CATEGORY']
@@ -238,7 +239,19 @@ class JSSRecipeCreator(object):
 
 def main():
     """Commandline processing of JSSRecipeCreator."""
-    recipe = JSSRecipeCreator(sys.argv[1])
+
+    # Create our argument parser
+    parser = argparse.ArgumentParser(description="Quickly generate JSS "
+                                     "recipes.")
+    parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
+    parser.add_argument("-r", "--recipe_template",
+                        help="Path to a recipe template. Defaults to a file "
+                        "named 'RecipeTemplate.xml' in the current directory,",
+                        default="./RecipeTemplate.xml")
+
+    args = parser.parse_args()
+
+    recipe = JSSRecipeCreator(args.ParentRecipe, args.recipe_template)
     print(recipe.recipe)
     with open(recipe.recipe_name, 'w') as f:
         f.write(recipe.recipe)
