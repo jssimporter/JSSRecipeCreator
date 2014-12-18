@@ -1,7 +1,7 @@
 ### 0.0.2 (December 18, 2014) Stomper
 
 CHANGES:
-- No uses AutoPkg configuration file. Hopefully you already have this configured for JSSImporter use!
+- Now uses AutoPkg configuration file. Hopefully you already have this configured for JSSImporter use!
 - Optional argument -r/--recipe_template allows you to use a different recipe template file.
 
 FIXES:
