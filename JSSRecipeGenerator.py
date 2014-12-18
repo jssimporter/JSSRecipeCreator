@@ -35,6 +35,9 @@ DEFAULT_POLICY_TEMPLATE = 'PolicyTemplate.xml'
 DEFAULT_GROUP_TEMPLATE = 'SmartGroupTemplate.xml'
 
 
+__version__ = '0.0.2'
+
+
 class JSSRecipeCreator(object):
     """Quickly build a jss recipe from a parent recipe."""
     def __init__(self, parent_recipe_path):
@@ -67,15 +70,28 @@ class JSSRecipeCreator(object):
         self.parent_recipe = parent_recipe_identifier
 
         # Determine our product name, recipe description
-        self.name = parent_recipe['Input']['NAME']
+        self.name = parent_recipe['Input'].get('NAME', '')
+        self.name = self.prompt_for_value('Name', [self.name], self.name)
         self.recipe_description = (parent_recipe['Description'] +
             " Then, uploads to the JSS.")
 
         self.minimum_version = parent_recipe['MinimumVersion']
 
         # Use our parent recipe and JSS to prompt for information.
-        jss_prefs = jss.JSSPrefs()
-        j = jss.JSS(jss_prefs)
+
+        # Get AutoPkg configuration settings for python-jss/JSSImporter
+        self.env = self.read_recipe(os.path.expanduser(
+            '~/Library/Preferences/com.github.autopkg.plist'))
+
+        repoUrl = self.env["JSS_URL"]
+        authUser = self.env["API_USERNAME"]
+        authPass = self.env["API_PASSWORD"]
+        sslVerify = self.env.get("JSS_VERIFY_SSL", True)
+        suppress_warnings = self.env.get("JSS_SUPPRESS_WARNINGS", False)
+        repos = self.env.get("JSS_REPOS")
+        j = jss.JSS(url=repoUrl, user=authUser, password=authPass,
+                    ssl_verify=sslVerify, repo_prefs=repos,
+                    suppress_warnings=suppress_warnings)
 
         # Check for any defaults set in RecipeTemplate (Put an un-escaped
         # category name in for your value).
