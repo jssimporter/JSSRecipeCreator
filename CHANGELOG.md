@@ -2,6 +2,7 @@
 
 CHANGES:
 - No uses AutoPkg configuration file. Hopefully you already have this configured for JSSImporter use!
+- Optional argument -r/--recipe_template allows you to use a different recipe template file.
 
 FIXES:
 - Now prompts for a NAME if one doesn't exist. It does not, sadly, suggest "ballin' dubstep" as a potential name. 

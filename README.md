@@ -5,6 +5,11 @@ This brief script allows one to rapidly make JSS recipes based on a set of templ
 
 It has python-jss as a dependency, although if you're worried about making JSS recipes, you probably already have this. If not, grab it *with* the JSSImporter [here](https://www.github.com/sheagcraig/JSSImporter), and make sure it's set up. It is used to grab existing category information.
 
+You will need some template files to make this work:
+- RecipeTemplate: This is the template file which the gets filled with information you provide.
+- PolicyTemplate: This is the PolicyTemplate file you use with your JSSImporter recipes. The file doesn't actually need to be present, but if you copy them to the directory JSSRecipeCreator is running from, they will magically appear in the menu as options, rather than having to key them in. Defaults to "PolicyTemplate.xml" (but you can change it in the globals section at the top of JSSRecipeCreator).
+- GroupTemplate: As per above. At this time, it only does a single group, so if you're scoping a ton of groups in your policies, send me a GitHub issue that you would like to see it added.
+
 Run the script and provide the path to a valid *pkg* recipe as its only argument:
 ```
 $ ./JSSRecipeCreator.py ~/Library/Autopkg/RecipeRepos/com.github.autopkg.sheagcraig-recipes/Greenfoot/Greenfoot.pkg.recipe

@@ -246,8 +246,9 @@ def main():
     parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
     parser.add_argument("-r", "--recipe_template",
                         help="Path to a recipe template. Defaults to a file "
-                        "named 'RecipeTemplate.xml' in the current directory,",
-                        default="./RecipeTemplate.xml")
+                        "named %s in the current directory," % \
+                        DEFAULT_RECIPE_TEMPLATE,
+                        default=DEFAULT_RECIPE_TEMPLATE)
 
     args = parser.parse_args()
 
