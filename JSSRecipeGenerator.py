@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import os.path
+import readline
+import subprocess
 import sys
 from xml.etree import ElementTree
 
@@ -84,6 +86,7 @@ class JSSRecipeCreator(object):
         self.env = self.read_recipe(os.path.expanduser(
             '~/Library/Preferences/com.github.autopkg.plist'))
 
+        print(self.env)
         repoUrl = self.env["JSS_URL"]
         authUser = self.env["API_USERNAME"]
         authPass = self.env["API_PASSWORD"]
@@ -256,6 +259,9 @@ def main():
     print(recipe.recipe)
     with open(recipe.recipe_name, 'w') as f:
         f.write(recipe.recipe)
+
+    print("Checking plist syntax...")
+    subprocess.check_call(['plutil', '-lint', recipe.recipe_name])
 
 
 if __name__ == '__main__':

@@ -1,3 +1,10 @@
+### 0.0.3 (December 19, 2014) Linty
+
+CHANGES:
+
+- Now does a quick "lint" check of XML with ```plutil -lint``` after generation.
+- readline support added so you can use those sweet terminal hotkeys.
+
 ### 0.0.2 (December 18, 2014) Stomper
 
 CHANGES:
