@@ -1,3 +1,9 @@
+### 0.0.4 (UNRELEASED) Michaelangelo is a Party Dude
+
+CHANGES:
+
+- Apparently I named the script file JSSRecipeGenerator.py, despite *every* other instance. Everything has been normalized to JSSRecipeCreator. Sorry for the confusion!
+
 ### 0.0.3 (December 19, 2014) Linty
 
 CHANGES:
