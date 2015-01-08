@@ -174,7 +174,7 @@ class JSSRecipeCreator(object):
 
         return info
 
-    def prompt_for_value(self, heading, options, default=None):
+    def prompt_for_value(self, heading, options, default=''):
         """Ask user to choose from a list of choices.
 
         heading:            The name of the things (e.g. Category, Icon).

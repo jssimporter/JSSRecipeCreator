@@ -4,6 +4,10 @@ CHANGES:
 
 - Apparently I named the script file JSSRecipeGenerator.py, despite *every* other instance. Everything has been normalized to JSSRecipeCreator. Sorry for the confusion!
 
+FIXES:
+
+- Category questions would fail if given a blank category name (trying to coerce None to a string type). This has been corrected (#4)
+
 ### 0.0.3 (December 19, 2014) Linty
 
 CHANGES:
