@@ -28,7 +28,9 @@ import sys
 
 from Foundation import (NSData,
                         NSPropertyListSerialization,
-                        NSPropertyListMutableContainers)
+                        NSPropertyListMutableContainers,
+                        NSPropertyListXMLFormat_v1_0)
+
 import jss
 
 
@@ -36,9 +38,129 @@ DEFAULT_RECIPE_TEMPLATE = 'RecipeTemplate.xml'
 DEFAULT_POLICY_TEMPLATE = 'PolicyTemplate.xml'
 DEFAULT_GROUP_TEMPLATE = 'SmartGroupTemplate.xml'
 
+__version__ = '0.0.4'
+
+
+class Recipe(dict):
+    """Represents AutoPkg recipe files as a dictionary, and provides methods
+    for manipulating them.
+
+    """
+    def __init__(self, filename):
+        """Parses an XML file into a Recipe object."""
+        self.xml = self.read_recipe(filename)
+
+    def __getitem__(self, key):
+        return self.xml[key]
+
+    def __setitem__(self, key, value):
+        self.xml[key] = value
+
+    def __delitem__(self, key):
+        del self.xml[key]
+
+    def __iter__(self):
+        return iter(self.xml)
+
+    def __len__(self):
+        return len(self.xml)
+
+    #def __repr__(self):
+    #    self.xml.__repr__()
+
+    def __str__(self):
+        return dict(self.xml).__str__()
+
+    def read_recipe(self, path):
+        """Read a recipe into a dict."""
+        if not (os.path.isfile(path)):
+            raise Exception("File does not exist: %s" % path)
+        info, format, error = \
+            NSPropertyListSerialization.propertyListWithData_options_format_error_(
+                NSData.dataWithContentsOfFile_(path),
+                NSPropertyListMutableContainers,
+                None,
+                None
+            )
+        if error:
+            raise Exception("Can't read %s: %s" % (path, error))
+
+        return info
+
+    def write_recipe(path):
+        """Write a recipe to path."""
+        plist_data, error = NSPropertyListSerialization.dataWithPropertyList_format_options_error_(
+            self.xml,
+            NSPropertyListXMLFormat_v1_0,
+            0,
+            None
+        )
+        if error:
+            raise Exception(error)
+        else:
+            if plist_data.writeToFile_atomically_(path, True):
+                return
+            else:
+                raise Exception("Failed writing data to %s" % data)
+
+class Menu(object):
+    """Presents users with a menu and handles their input."""
+    def __init__(self):
+        self.submenus = []
+        self.results = {}
+
+    def run(self):
+        for submenu in self.submenus:
+            self.results.update(submenu.ask())
+
+    def add_submenu(self, submenu):
+        self.submenus.append(submenu)
 
 __version__ = '0.0.2'
 
+class Submenu(object):
+    """Represents an individual menu 'question'."""
+    def __init__(self, heading, options, default=''):
+        """Create a submenu.
+
+        heading:            The name of the things (e.g. Category, Icon).
+        options:            List of potential values string "name" values.
+        default:            The default choice (to accept, hit enter).
+
+        """
+        self.heading = heading
+        self.options = options
+        self.default = default
+
+    def ask(self):
+        """Ask user a question based on configured values."""
+        print("Please choose a %s" % self.heading)
+        print("Hit enter to accept default choice, or enter a number.")
+
+        # We're not afraid of zero-indexed lists!
+        indexes = xrange(len(self.options))
+        option_list = zip(indexes, self.options)
+        # Use zip!
+        for option in option_list:
+            choice_string = "%s: %s" % option
+            if self.default == option[1]:
+                choice_string += " (DEFAULT)"
+            print(choice_string)
+
+        print("\nCreate a new %s by entering name/path." % self.heading)
+        choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
+                           self.default)
+        print()
+
+        if choice.isdigit():
+            result = self.options[int(choice)]
+        elif choice == '':
+            result = self.default
+        else:
+            # User provided a new object value.
+            result = choice
+
+        return {self.heading: result}
 
 class JSSRecipeCreator(object):
     """Quickly build a jss recipe from a parent recipe."""
