@@ -70,8 +70,8 @@ class Recipe(dict):
     def __len__(self):
         return len(self.xml)
 
-    #def __repr__(self):
-    #    self.xml.__repr__()
+    def __repr__(self):
+        return dict(self.xml).__repr__()
 
     def __str__(self):
         return dict(self.xml).__str__()
