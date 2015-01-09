@@ -3,6 +3,8 @@
 CHANGES:
 
 - Apparently I named the script file JSSRecipeGenerator.py, despite *every* other instance. Everything has been normalized to JSSRecipeCreator. Sorry for the confusion!
+- Added comment to RecipeTemplate to help spread the word.
+- Refactored code into real objects.
 
 FIXES:
 

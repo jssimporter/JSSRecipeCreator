@@ -25,7 +25,6 @@ import os.path
 import readline
 import subprocess
 import sys
-from xml.etree import ElementTree
 
 from Foundation import (NSData,
                         NSPropertyListSerialization,
