@@ -46,35 +46,40 @@ DEFAULT_GROUP_TEMPLATE = 'SmartGroupTemplate.xml'
 __version__ = '0.0.4'
 
 
-class Recipe(dict):
-    """Represents AutoPkg recipe files as a dictionary, and provides methods
-    for manipulating them.
+class Plist(dict):
+    """Abbreviated plist representation (as a dict) with methods for reading,
+    writing, and creating blank plists.
 
     """
-    def __init__(self, filename):
+    def __init__(self, filename=None):
         """Parses an XML file into a Recipe object."""
-        self.xml = self.read_recipe(filename)
+        self._xml = {}
+
+        if filename:
+            self.read_recipe(filename)
+        else:
+            self.new_plist()
 
     def __getitem__(self, key):
-        return self.xml[key]
+        return self._xml[key]
 
     def __setitem__(self, key, value):
-        self.xml[key] = value
+        self._xml[key] = value
 
     def __delitem__(self, key):
-        del self.xml[key]
+        del self._xml[key]
 
     def __iter__(self):
-        return iter(self.xml)
+        return iter(self._xml)
 
     def __len__(self):
-        return len(self.xml)
+        return len(self._xml)
 
     def __repr__(self):
-        return dict(self.xml).__repr__()
+        return dict(self._xml).__repr__()
 
     def __str__(self):
-        return dict(self.xml).__str__()
+        return dict(self._xml).__str__()
 
     def read_recipe(self, path):
         """Read a recipe into a dict."""
@@ -90,12 +95,12 @@ class Recipe(dict):
         if error:
             raise Exception("Can't read %s: %s" % (path, error))
 
-        return info
+        self._xml = info
 
-    def write_recipe(path):
+    def write_recipe(self, path):
         """Write a recipe to path."""
         plist_data, error = NSPropertyListSerialization.dataWithPropertyList_format_options_error_(
-            self.xml,
+            self._xml,
             NSPropertyListXMLFormat_v1_0,
             0,
             None
@@ -107,6 +112,46 @@ class Recipe(dict):
                 return
             else:
                 raise Exception("Failed writing data to %s" % data)
+
+    def new_plist(self):
+        """Generate a barebones recipe plist."""
+        pass
+
+
+class Recipe(Plist):
+    """Represents a recipe plist file, with methods for reading existing
+    recipes and saving them again. Overrides dict, so most idioms and patterns
+    apply.
+
+    """
+    def new_plist(self):
+        """Generate a barebones recipe plist."""
+        # Not implemented
+        self._xml['Description'] = ''
+        self._xml['Identifier'] = ''
+        self._xml['MinimumVersion'] = ''
+        self._xml['ParentRecipe'] = ''
+        self._xml['Input'] = {}
+
+        # JSSImporter-related Input variables
+        self._xml['Input'].update({'NAME': '',
+                                   'CATEGORY': '',
+                                   'POLICY_CATEGORY': '',
+                                   'POLICY_TEMPLATE': '',
+                                   'ICON': '',
+                                   'DESCRIPTION': ''})
+        self._xml['Process'] = [{'Processor': 'JSSImporter',
+                                 'Arguments': {'prod_name': '%NAME%',
+                                               'category': '%CATEGORY%',
+                                               'policy_category':
+                                               '%POLICY_CATEGORY%',
+                                               'policy_template':
+                                               '%POLICY_TEMPLATE%',
+                                               'self_service_icon': '%ICON%',
+                                               'self_service_description':
+                                               '%DESCRIPTION%',
+                                               'groups': [] }}]
+
 
 class Menu(object):
     """Presents users with a menu and handles their input."""
