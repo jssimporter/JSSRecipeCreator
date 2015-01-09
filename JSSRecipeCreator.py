@@ -34,8 +34,13 @@ from Foundation import (NSData,
 import jss
 
 
+# Globals
+# Edit these if you want to change their default values.
+# TODO: Potentially build a preferences/plist system to handle this.
 DEFAULT_RECIPE_TEMPLATE = 'RecipeTemplate.xml'
 DEFAULT_POLICY_TEMPLATE = 'PolicyTemplate.xml'
+DEFAULT_RECIPE_DESC_PS = " Then, uploads to the JSS."
+DEFAULT_GROUP_NAME = '%NAME%-update-smart'
 DEFAULT_GROUP_TEMPLATE = 'SmartGroupTemplate.xml'
 
 __version__ = '0.0.4'
@@ -116,7 +121,6 @@ class Menu(object):
     def add_submenu(self, submenu):
         self.submenus.append(submenu)
 
-__version__ = '0.0.2'
 
 class Submenu(object):
     """Represents an individual menu 'question'."""
