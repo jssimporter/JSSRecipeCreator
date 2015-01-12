@@ -37,7 +37,6 @@ import jss
 
 # Globals
 # Edit these if you want to change their default values.
-# TODO: Potentially build a preferences/plist system to handle this.
 DEFAULT_RECIPE_TEMPLATE = 'RecipeTemplate.xml'
 DEFAULT_POLICY_TEMPLATE = 'PolicyTemplate.xml'
 DEFAULT_RECIPE_DESC_PS = " Then, uploads to the JSS."
@@ -138,7 +137,14 @@ class Recipe(Plist):
 
 
 class JSSRecipe(Recipe):
-    """An Autopkg JSS recipe."""
+    """An Autopkg JSS recipe.
+
+    Recipes are constructed with redundant INPUT variables / JSSImporter
+    arguments to maximize override-ability. Therefore, the JSSImporter
+    arguments should be probably be left with replacement variables as
+    their values.
+
+    """
     def handle_name(self):
         pass
 
@@ -149,13 +155,7 @@ class JSSRecipe(Recipe):
         pass
 
     def handle_group(self):
-        # Icon (We only use png).
-        default = self.name + '.png'
-        icon_options = [icon for icon in os.listdir(os.curdir) if
-                        'PNG' in os.path.splitext(icon)[1].upper()]
-        self.icon = self.prompt_for_value('Self Service Icon',
-                                                     icon_options,
-                                                     default=default)
+        pass
 
     def handle_description(self):
         pass
@@ -268,7 +268,26 @@ class JSSRecipe(Recipe):
         return text
 
     def update(self, update_dict):
-        pass
+        """Updates a JSSRecipe's values with those supplied by argument.
+
+        update_dict         Dictionary of recipe values. Keys should match
+                            the desired INPUT variable name.
+
+        """
+        # This is tightly coupled with the INPUT variable key names I have
+        # chosen. This would be a good target for the next refactoring.
+        self['Identifier'] = update_dict['Identifier']
+        self['ParentRecipe'] = update_dict['ParentRecipe']
+        self['Description'] = update_dict['Description']
+        self['MinimumVersion'] = update_dict['MinimumVersion']
+        # Input section
+        self['Input']['NAME'] = update_dict['NAME']
+        self['Input']['POLICY_TEMPLATE'] = update_dict['POLICY_TEMPLATE']
+        self['Input']['POLICY_CATEGORY'] = update_dict['POLICY_CATEGORY']
+        self['Input']['CATEGORY'] = update_dict['CATEGORY']
+        self['Input']['ICON'] = update_dict['ICON']
+        self['Input']['DESCRIPTION'] = update_dict['DESCRIPTION']
+
 
 class Menu(object):
     """Presents users with a menu and handles their input."""
@@ -289,16 +308,22 @@ class Menu(object):
 
 class Submenu(object):
     """Represents an individual menu 'question'."""
-    def __init__(self, heading, options, default=''):
+    def __init__(self, key, options, default='', heading=''):
         """Create a submenu.
 
+        key:                Name of INPUT variable key.
         heading:            The name of the things (e.g. Category, Icon).
         options:            List of potential values string "name" values. Will
                             also accept a single value.
         default:            The default choice (to accept, hit enter).
 
         """
-        self.heading = heading
+        self.key = key
+        # If we don't get a heading, just use the key name.
+        if not heading:
+            self.heading = key
+        else:
+            self.heading = heading
         if not isinstance(options, list):
             self.options = [options]
         else:
@@ -332,7 +357,32 @@ class Submenu(object):
             # User provided a new object value.
             result = choice
 
-        return {self.heading: result}
+        return {self.key: result}
+
+
+class ScopeSubmenu(Submenu):
+    """Specialized submenu for scope questions."""
+    def __init__(self, key, options, default='', heading=''):
+        super(ScopeSubmenu, self).__init__(key, options, default, heading)
+        self.result_list = []
+        # Look for templated values first.
+        #template_groups = []
+
+        # Add to results
+        #self.result_list.extend(template_groups)
+        raise NotImplementedError()
+
+    def ask(self):
+        print("Scope:")
+        pprint.pprint(self.result_list)
+        response = raw_input('Do you want to specify another scoping group? '
+                             '(Y|N) ')
+        while response.upper() != 'N':
+            result_name = super(ScopeSubmenu, self).ask()
+            result_template = raw_input('SmartGroupTemplate ')
+
+            response = raw_input('Do you want to specify another '
+                                 'scoping group? (Y|N) ')
 
 
 def configure_jss(env):
@@ -364,8 +414,11 @@ def build_menu(j, parent_recipe, recipe, args):
     # Identifier
     parent_recipe_id = parent_recipe['Identifier']
     default_recipe_id = parent_recipe_id.replace('.pkg.', '.jss.')
-    menu.add_submenu(Submenu('Recipe Identifier', default_recipe_id,
-                             default_recipe_id))
+    menu.add_submenu(Submenu('Identifier', default_recipe_id,
+                             default_recipe_id, 'Recipe Identifier'))
+
+    # Parent Recipe
+    menu.results['ParentRecipe'] = parent_recipe['Identifier']
 
     # Description, Min version.
     # Append a JSS recipe description to the parent's string.
@@ -374,42 +427,61 @@ def build_menu(j, parent_recipe, recipe, args):
 
     # Use the parent's Minimum version since JSSImporter has no extra
     # version requirements.
-    menu.results['minimum_version'] = parent_recipe['MinimumVersion']
+    menu.results['MinimumVersion'] = parent_recipe['MinimumVersion']
 
     # NAME
     parent_recipe_NAME = parent_recipe['Input'].get('NAME', '')
-    menu.add_submenu(Submenu('Name', parent_recipe_NAME,
+    menu.add_submenu(Submenu('NAME', parent_recipe_NAME,
                      parent_recipe_NAME))
 
     # Policy Template
     policy_template_options = [template for template in os.listdir(os.curdir)
                                if 'XML' in
                                os.path.splitext(template)[1].upper()]
-    if DEFAULT_POLICY_TEMPLATE in policy_template_options:
+    # Check for a value supplied in the template; then fall back to the global
+    # from above, and barring that, use ''.
+    if recipe['Input'].get('POLICY_TEMPLATE'):
+        policy_template_default = recipe['Input']['POLICY_TEMPLATE']
+    elif DEFAULT_POLICY_TEMPLATE in policy_template_options:
         policy_template_default = DEFAULT_POLICY_TEMPLATE
     else:
         policy_template_default = ''
-    menu.add_submenu(Submenu('Policy Template', policy_template_options,
-                             policy_template_default))
+    menu.add_submenu(Submenu('POLICY_TEMPLATE', policy_template_options,
+                             policy_template_default, 'Policy Template'))
 
     # Categories
     categories = [cat.name for cat in j.Category()]
     default_pkg_category = recipe['Input']['CATEGORY']
-    menu.add_submenu(Submenu('Package Category', categories,
-                             default_pkg_category))
+    menu.add_submenu(Submenu('CATEGORY', categories,
+                             default_pkg_category, 'Package Category'))
     default_policy_category = recipe['Input']['POLICY_CATEGORY']
-    menu.add_submenu(Submenu('Policy Category', categories,
-                             default_policy_category))
+    menu.add_submenu(Submenu('POLICY_CATEGORY', categories,
+                             default_policy_category, 'Policy Category'))
 
-    # Groups
-    # Needs special handling
-    menu.add_submenu(Submenu('Group', None, None))
+    # Scope
+    ## See if we have any templated scope information.
+    #for processor in recipe['Process']:
+    #    if processor['Processor'] == 'JSSImporter':
+    #        try:
+    #            template_scope = processor['Arguments']['groups']
+    #        except KeyError:
+    #            template_scope = []
+    #group_options = [group.name for group in j.ComputerGroup()]
+    #menu.add_submenu(GroupSubmenu('groups', group_options, None, 'Group'))
+
+    # Icon (We only use png).
+    icon_default = parent_recipe['Input'].get('NAME', 'Icon') + '.png'
+    icon_options = [icon for icon in os.listdir(os.curdir) if
+                    'PNG' in os.path.splitext(icon)[1].upper()]
+    menu.add_submenu(Submenu('ICON', icon_options, icon_default,
+                             'Self Service Icon'))
 
     # Self Service description.
     default_self_service_desc = recipe['Input'].get('DESCRIPTION')
-    menu.add_submenu(Submenu('Self Service Description',
+    menu.add_submenu(Submenu('DESCRIPTION',
                              default_self_service_desc,
-                             default_self_service_desc))
+                             default_self_service_desc,
+                             'Self Service Description'))
 
     return menu
 
@@ -443,6 +515,7 @@ def build_argparser():
     #                    "those which don't.", action='store_true')
 
     return parser
+
 
 def main():
     """Commandline processing of JSSRecipeCreator."""
