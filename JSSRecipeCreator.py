@@ -136,67 +136,14 @@ class Recipe(Plist):
         self._xml['ParentRecipe'] = ''
         self._xml['Input'] = {}
 
-        # JSSImporter-related Input variables
-        self._xml['Input'].update({'NAME': '',
-                                   'CATEGORY': '',
-                                   'POLICY_CATEGORY': '',
-                                   'POLICY_TEMPLATE': '',
-                                   'ICON': '',
-                                   'DESCRIPTION': ''})
-        self._xml['Process'] = [{'Processor': 'JSSImporter',
-                                 'Arguments': {'prod_name': '%NAME%',
-                                               'category': '%CATEGORY%',
-                                               'policy_category':
-                                               '%POLICY_CATEGORY%',
-                                               'policy_template':
-                                               '%POLICY_TEMPLATE%',
-                                               'self_service_icon': '%ICON%',
-                                               'self_service_description':
-                                               '%DESCRIPTION%',
-                                               'groups': [] }}]
-
 
 class JSSRecipe(Recipe):
-    """Quickly build a jss recipe from a parent recipe."""
-    #def __init__(self, parent_recipe_path, recipe_template_path):
-    #    """Given a path to a parent recipe, pull all needed information.
-
-    #    parent_recipe_path should be a path to a *pkg* recipe.
-
-    #    Configures basic information about recipe, and then delegates other
-    #    tasks to individual methods.
-
-    #    """
-
+    """An Autopkg JSS recipe."""
     def handle_name(self):
         pass
 
     def handle_categories(self):
-        # Check for any defaults set in RecipeTemplate (Put an un-escaped
-        # category name in for your value).
-        recipe_template = self.read_recipe(recipe_template_path)
-        categories = [cat.name for cat in self.j.Category()]
-
-        recipe_template_pkg_category = recipe_template['Input']['CATEGORY']
-        if '%' in recipe_template_pkg_category:
-            # This is not a default value.
-            self.pkg_category = self.prompt_for_value(
-                'Package Category', categories)
-        else:
-            print('\nRecipe Template specified PKG_CATEGORY: %s\n' %
-                  recipe_template_pkg_category)
-            self.package_category = recipe_template_pkg_category
-
-        recipe_template_policy_category = \
-                recipe_template['Input']['POLICY_CATEGORY']
-        if '%' in recipe_template_policy_category:
-            # This is not a default value.
-            self.policy_category = self.prompt_for_value(
-                'Policy Category', categories)
-        else:
-            print('\nRecipe Template specified POLICY_CATEGORY: %s\n' %
-                  recipe_template_policy_category)
-            self.policy_category = recipe_template_policy_category
+        pass
 
     def handle_policy_template(self):
         pass
@@ -211,10 +158,7 @@ class JSSRecipe(Recipe):
                                                      default=default)
 
     def handle_description(self):
-        # Product description.
-        self.product_description = self.prompt_for_value(
-            'Product Description', [], '')
-
+        pass
     def handle_groups(self):
         """Present user with a menu for adding an arbitrary number of groups.
         For each group desired, we need a name, and whether the group is
@@ -262,6 +206,26 @@ class JSSRecipe(Recipe):
 
         return {'name': name, 'smart_group_template': smart_group_template}
 
+    def new_plist(self):
+        super(JSSRecipe, self).new_plist()
+
+        self._xml['Input'].update({'NAME': '',
+                                   'CATEGORY': '',
+                                   'POLICY_CATEGORY': '',
+                                   'POLICY_TEMPLATE': '',
+                                   'ICON': '',
+                                   'DESCRIPTION': ''})
+        self._xml['Process'] = [{'Processor': 'JSSImporter',
+                                 'Arguments': {'prod_name': '%NAME%',
+                                               'category': '%CATEGORY%',
+                                               'policy_category':
+                                               '%POLICY_CATEGORY%',
+                                               'policy_template':
+                                               '%POLICY_TEMPLATE%',
+                                               'self_service_icon': '%ICON%',
+                                               'self_service_description':
+                                               '%DESCRIPTION%',
+                                               'groups': [] }}]
 
     # Deprecated
     def build_recipe(self, recipe_template_path=DEFAULT_RECIPE_TEMPLATE):
@@ -303,6 +267,8 @@ class JSSRecipe(Recipe):
             text = text.replace(key, value)
         return text
 
+    def update(self, update_dict):
+        pass
 
 class Menu(object):
     """Presents users with a menu and handles their input."""
@@ -380,52 +346,18 @@ def configure_jss(env):
     j = jss.JSS(url=repoUrl, user=authUser, password=authPass,
                 ssl_verify=sslVerify, repo_prefs=repos,
                 suppress_warnings=suppress_warnings)
+    return j
 
 
-def main():
-    """Commandline processing of JSSRecipeCreator."""
-
-    # Create our argument parser
-    parser = argparse.ArgumentParser(description="Quickly generate JSS "
-                                     "recipes.")
-    parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
-
-    # This part is kind of confusing:
-    # We have two options-build a JSSRecipe procedurally, or read in a recipe
-    # template. But we also want to not HAVE to specify a template, since
-    # most people will want to use one. So, we create a mutually exclusive
-    # group. If you don't specify either of the -r or -s options, it uses the
-    # default recipe template as specified in the global above. If you specify
-    # both argparse stops execution. The only other case we need to worry about
-    # is a defaulted -r value AND -s being specified on the cmdline. This is
-    # tested for in the logic later.
-    recipe_template_parser = parser.add_mutually_exclusive_group()
-    recipe_template_parser.add_argument(
-        "-r", "--recipe_template", help="Use a recipe template. Defaults to a "
-        "file named %s in the current directory," % DEFAULT_RECIPE_TEMPLATE,
-        default=DEFAULT_RECIPE_TEMPLATE)
-    recipe_template_parser.add_argument(
-        "-s", "--from_scratch", help="Do not use a recipe template; instead, "
-        "build a recipe from scratch.", action='store_true')
-
-    #parser.add_argument("-a", "--auto", help="Uses default choices for all "
-    #                    "questions that have detected values. Prompts for "
-    #                    "those which don't.", action='store_true')
-
-    args = parser.parse_args()
-
-    # Get AutoPkg configuration settings for python-jss/JSSImporter.
-    env = Plist(AUTOPKG_PREFERENCES)
-    configure_jss(env)
-
-    # Build our interactive menu
+def build_menu(j, parent_recipe, recipe, args):
+    """Construct the menu for prompting users to create a JSS recipe."""
     menu = Menu()
 
     # Filename.
     if not 'PKG.RECIPE' in args.ParentRecipe.upper():
         raise Exception('Recipe must be based on a package recipe!')
-    parent_recipe = Recipe(args.ParentRecipe)
-    default_filename = args.ParentRecipe.replace('.pkg.', '.jss.')
+    default_filename = os.path.basename(
+        args.ParentRecipe.replace('.pkg.', '.jss.'))
     menu.add_submenu(Submenu('Recipe Filename', default_filename,
                              default_filename))
 
@@ -460,45 +392,96 @@ def main():
     menu.add_submenu(Submenu('Policy Template', policy_template_options,
                              policy_template_default))
 
+    # Categories
+    categories = [cat.name for cat in j.Category()]
+    default_pkg_category = recipe['Input']['CATEGORY']
+    menu.add_submenu(Submenu('Package Category', categories,
+                             default_pkg_category))
+    default_policy_category = recipe['Input']['POLICY_CATEGORY']
+    menu.add_submenu(Submenu('Policy Category', categories,
+                             default_policy_category))
+
+    # Groups
     # Needs special handling
     menu.add_submenu(Submenu('Group', None, None))
-    menu.add_submenu(Submenu('Self Service Description', None, None))
 
-    menu.run()
-    pprint.pprint(menu.results)
+    # Self Service description.
+    default_self_service_desc = recipe['Input'].get('DESCRIPTION')
+    menu.add_submenu(Submenu('Self Service Description',
+                             default_self_service_desc,
+                             default_self_service_desc))
 
-    # Create a JSSRecipe object and use our menu results to populate.
+    return menu
+
+
+def build_argparser():
+    """Create our argument parser."""
+    parser = argparse.ArgumentParser(description="Quickly generate JSS "
+                                     "recipes.")
+    parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
+
+    # This part is kind of confusing:
+    # We have two options-build a JSSRecipe procedurally, or read in a recipe
+    # template. But we also want to not HAVE to specify a template, since
+    # most people will want to use one. So, we create a mutually exclusive
+    # group. If you don't specify either of the -r or -s options, it uses the
+    # default recipe template as specified in the global above. If you specify
+    # both argparse stops execution. The only other case we need to worry about
+    # is a defaulted -r value AND -s being specified on the cmdline. This is
+    # tested for in the logic later.
+    recipe_template_parser = parser.add_mutually_exclusive_group()
+    recipe_template_parser.add_argument(
+        "-r", "--recipe_template", help="Use a recipe template. Defaults to a "
+        "file named %s in the current directory," % DEFAULT_RECIPE_TEMPLATE,
+        default=DEFAULT_RECIPE_TEMPLATE)
+    recipe_template_parser.add_argument(
+        "-s", "--from_scratch", help="Do not use a recipe template; instead, "
+        "build a recipe from scratch.", action='store_true')
+
+    #parser.add_argument("-a", "--auto", help="Uses default choices for all "
+    #                    "questions that have detected values. Prompts for "
+    #                    "those which don't.", action='store_true')
+
+    return parser
+
+def main():
+    """Commandline processing of JSSRecipeCreator."""
+    # Handle command line arguments
+    parser = build_argparser()
+    args = parser.parse_args()
+
+    # Get AutoPkg configuration settings for python-jss/JSSImporter.
+    env = Plist(AUTOPKG_PREFERENCES)
+    j = configure_jss(env)
+
+    # Create a JSSRecipe object
     # from_scratch and recipe_template are mutually exclusive
     if args.from_scratch:
         recipe = JSSRecipe()
     else:
         recipe = JSSRecipe(args.recipe_template)
 
+    # We need a parent recipe to use for determining some values.
+    parent_recipe = Recipe(args.ParentRecipe)
+
+    # Build our interactive menu
+    menu = build_menu(j, parent_recipe, recipe, args)
+
+    # Run the questions past the user.
+    menu.run()
+    print('')
+    pprint.pprint(menu.results)
+
+    # Merge the answers with the JSSRecipe.
+    recipe.update(menu.results)
+
+    # Final output.
+    print('')
     pprint.pprint(recipe)
-
-    ######################################################################
-    # Reference Code
-    #    self.handle_group()
-    #    self.handle_description()
-    #    self.handle_groups()
-
-    # Parent Recipe
-    #    self.parent_recipe_path = parent_recipe_path
-    #    self.recipe_template_path = recipe_template_path
-
-    #    if self.recipe_template_path:
-    #        self.recipe = Recipe(self.recipe_template_path)
-    #    else:
-    #        self.recipe = Recipe()
-
-    #recipe = JSSRecipeCreator(args.ParentRecipe, args.recipe_template)
-    #print(recipe.recipe)
-    #recipe.recipe.write_recipe(recipe.recipe_name)
-    #with open(recipe.recipe_name, 'w') as f:
-    #    f.write(recipe.recipe)
-
-    #print("Checking plist syntax...")
-    #subprocess.check_call(['plutil', '-lint', recipe.recipe_name])
+    recipe.write_recipe(menu.results['Recipe Filename'])
+    print('')
+    print("Checking plist syntax...")
+    subprocess.check_call(['plutil', '-lint', menu.results['Recipe Filename']])
 
 
 if __name__ == '__main__':
