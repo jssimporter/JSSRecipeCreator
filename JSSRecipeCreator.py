@@ -42,6 +42,7 @@ DEFAULT_POLICY_TEMPLATE = 'PolicyTemplate.xml'
 DEFAULT_RECIPE_DESC_PS = " Then, uploads to the JSS."
 DEFAULT_GROUP_NAME = '%NAME%-update-smart'
 DEFAULT_GROUP_TEMPLATE = 'SmartGroupTemplate.xml'
+AUTOPKG_PREFERENCES = '~/Library/Preferences/com.github.autopkg.plist'
 
 __version__ = '0.0.4'
 
@@ -83,6 +84,7 @@ class Plist(dict):
 
     def read_recipe(self, path):
         """Read a recipe into a dict."""
+        path = os.path.expanduser(path)
         if not (os.path.isfile(path)):
             raise Exception("File does not exist: %s" % path)
         info, format, error = \
@@ -153,135 +155,25 @@ class Recipe(Plist):
                                                'groups': [] }}]
 
 
-class Menu(object):
-    """Presents users with a menu and handles their input."""
-    def __init__(self):
-        self.submenus = []
-        self.results = {}
-
-    def run(self):
-        for submenu in self.submenus:
-            self.results.update(submenu.ask())
-
-    def add_submenu(self, submenu):
-        self.submenus.append(submenu)
-
-
-class Submenu(object):
-    """Represents an individual menu 'question'."""
-    def __init__(self, heading, options, default=''):
-        """Create a submenu.
-
-        heading:            The name of the things (e.g. Category, Icon).
-        options:            List of potential values string "name" values.
-        default:            The default choice (to accept, hit enter).
-
-        """
-        self.heading = heading
-        self.options = options
-        self.default = default
-
-    def ask(self):
-        """Ask user a question based on configured values."""
-        print("Please choose a %s" % self.heading)
-        print("Hit enter to accept default choice, or enter a number.")
-
-        # We're not afraid of zero-indexed lists!
-        indexes = xrange(len(self.options))
-        option_list = zip(indexes, self.options)
-        # Use zip!
-        for option in option_list:
-            choice_string = "%s: %s" % option
-            if self.default == option[1]:
-                choice_string += " (DEFAULT)"
-            print(choice_string)
-
-        print("\nCreate a new %s by entering name/path." % self.heading)
-        choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
-                           self.default)
-        print()
-
-        if choice.isdigit():
-            result = self.options[int(choice)]
-        elif choice == '':
-            result = self.default
-        else:
-            # User provided a new object value.
-            result = choice
-
-        return {self.heading: result}
-
-
-class JSSRecipeCreator(object):
+class JSSRecipe(Recipe):
     """Quickly build a jss recipe from a parent recipe."""
-    def __init__(self, parent_recipe_path, recipe_template_path, auto=False):
-        """Given a path to a parent recipe, pull all needed information.
+    #def __init__(self, parent_recipe_path, recipe_template_path):
+    #    """Given a path to a parent recipe, pull all needed information.
 
-        parent_recipe_path should be a path to a *pkg* recipe.
+    #    parent_recipe_path should be a path to a *pkg* recipe.
 
-        Configures basic information about recipe, and then delegates other
-        tasks to individual methods.
+    #    Configures basic information about recipe, and then delegates other
+    #    tasks to individual methods.
 
-        """
-        self.parent_recipe_path = os.path.expanduser(parent_recipe_path)
-        self.recipe_template_path = recipe_template_path
+    #    """
+    #    self.handle_parent_recipe_info()
+    #    self.handle_name()
+    #    self.handle_policy_template()
+    #    self.handle_group()
+    #    self.handle_description()
+    #    self.handle_groups()
 
-        if self.recipe_template_path:
-            self.recipe = Recipe(self.recipe_template_path)
-        else:
-            self.recipe = Recipe()
-        #self.auto = auto
 
-        # Get AutoPkg configuration settings for python-jss/JSSImporter
-        self.env = Plist(os.path.expanduser(
-            '~/Library/Preferences/com.github.autopkg.plist'))
-        self.configure_jss()
-
-        self.handle_parent_recipe_info()
-        self.handle_name()
-        self.handle_policy_template()
-        self.handle_group()
-        self.handle_description()
-        self.handle_groups()
-
-        # Reference
-        #menu = Menu()
-        #menu.add_submenu(Submenu('Name', ['figlet', 'pyCharm', 'cowsay'],
-        #                        'pyCharm'))
-
-        #menu.run()
-        #print(menu.results)
-
-    def handle_parent_recipe_info(self):
-        # Parse our parent recipe.
-        parent_recipe_name = os.path.basename(self.parent_recipe_path)
-        if not 'PKG' in parent_recipe_name.upper():
-            raise Exception('Recipe must be based on a package recipe!')
-
-        self.parent_recipe = Recipe(self.parent_recipe_path)
-
-        # Determine our recipe's filename.
-        self.recipe_name = parent_recipe_name.replace('.pkg.', '.jss.')
-        #self.recipe_name = self.prompt_for_value('Recipe Filename',
-        #                                         [self.recipe_name],
-        #                                         self.recipe_name)
-
-        # Determine our recipe's identifier, and parent.
-        self.parent_recipe_identifier = self.parent_recipe['Identifier']
-        self.recipe_identifier = self.parent_recipe_identifier.replace(
-            '.pkg.', '.jss.')
-        #self.recipe_identifier = self.prompt_for_value('Recipe Identifier',
-        #                                               [self.recipe_identifier],
-        #                                               self.recipe_identifier)
-        self.recipe['Identifier'] = self.recipe_identifier
-
-        # Append a JSS recipe description to the parent's string.
-        self.recipe_description = (self.parent_recipe['Description'] +
-                                   DEFAULT_RECIPE_DESC_PS)
-
-        # Use the parent's Minimum version since JSSImporter has no extra
-        # version requirements.
-        self.minimum_version = self.parent_recipe['MinimumVersion']
 
     def handle_name(self):
         # Determine our product name, recipe description
@@ -393,55 +285,125 @@ class JSSRecipeCreator(object):
 
         return {'name': name, 'smart_group_template': smart_group_template}
 
-    def configure_jss(self):
-        # Configure a JSS object.
-        repoUrl = self.env["JSS_URL"]
-        authUser = self.env["API_USERNAME"]
-        authPass = self.env["API_PASSWORD"]
-        sslVerify = self.env.get("JSS_VERIFY_SSL", True)
-        suppress_warnings = self.env.get("JSS_SUPPRESS_WARNINGS", False)
-        repos = self.env.get("JSS_REPOS")
-        self.j = jss.JSS(url=repoUrl, user=authUser, password=authPass,
-                    ssl_verify=sslVerify, repo_prefs=repos,
-                    suppress_warnings=suppress_warnings)
 
-    def build_recipe(self, recipe_template_path=DEFAULT_RECIPE_TEMPLATE):
-        """Given a recipe template, swap in all of the
-        values we have set up.
+    # Deprecated
+    #def build_recipe(self, recipe_template_path=DEFAULT_RECIPE_TEMPLATE):
+    #    """Given a recipe template, swap in all of the
+    #    values we have set up.
+
+    #    """
+    #    # Do simple text replacement on templated variables
+    #    with open(recipe_template_path, 'r') as f:
+    #        recipe = self.replace_text(f.read())
+
+    #    # Reopen as an XML document and inject the groups
+    #    raise NotImplementedError("Not done yet")
+
+    #    self.recipe = recipe
+
+    # Deprecated
+    #def replace_text(self, text):
+    #    """Substitute items in a text string.
+
+    #    text: A string with embedded %tags%.
+
+    #    """
+    #    # Build a replacement dictionary
+    #    replace_dict = {}
+    #    replace_dict['%RECIPE_IDENTIFIER%'] = self.recipe_identifier
+    #    replace_dict['%PARENT_RECIPE%'] = self.parent_recipe_identifier
+    #    # The input variable substitution %NAME% is already used.
+    #    replace_dict['%PRODUCT_NAME%'] = self.name
+    #    replace_dict['%RECIPE_DESCRIPTION%'] = self.recipe_description
+    #    replace_dict['%RECIPE_PRODUCT_DESCRIPTION%'] = self.product_description
+    #    replace_dict['%MINIMUM_VERSION%'] = self.minimum_version
+    #    replace_dict['%RECIPE_PKG_CATEGORY%'] = self.pkg_category
+    #    replace_dict['%RECIPE_POLICY_CATEGORY%'] = self.policy_category
+    #    replace_dict['%RECIPE_POLICY_TEMPLATE%'] = self.policy_template
+    #    replace_dict['%RECIPE_GROUP_TEMPLATE%'] = self.group_template
+    #    replace_dict['%RECIPE_ICON%'] = self.icon
+    #    for key, value in replace_dict.iteritems():
+    #        text = text.replace(key, value)
+    #    return text
+
+
+class Menu(object):
+    """Presents users with a menu and handles their input."""
+    def __init__(self):
+        self.submenus = []
+        self.results = {}
+
+    def run(self):
+        for submenu in self.submenus:
+            self.results.update(submenu.ask())
+
+    def add_submenu(self, submenu):
+        if isinstance(submenu, Submenu):
+            self.submenus.append(submenu)
+        else:
+            raise Exception("Only Submenu may be added!")
+
+
+class Submenu(object):
+    """Represents an individual menu 'question'."""
+    def __init__(self, heading, options, default=''):
+        """Create a submenu.
+
+        heading:            The name of the things (e.g. Category, Icon).
+        options:            List of potential values string "name" values. Will
+                            also accept a single value.
+        default:            The default choice (to accept, hit enter).
 
         """
-        # Do simple text replacement on templated variables
-        with open(recipe_template_path, 'r') as f:
-            recipe = self.replace_text(f.read())
+        self.heading = heading
+        if not isinstance(options, list):
+            self.options = [options]
+        else:
+            self.options = options
+        self.default = default
 
-        # Reopen as an XML document and inject the groups
-        raise NotImplementedError("Not done yet")
+    def ask(self):
+        """Ask user a question based on configured values."""
+        print("\nPlease choose a %s" % self.heading)
+        print("Hit enter to accept default choice, or enter a number.\n")
 
-        self.recipe = recipe
+        # We're not afraid of zero-indexed lists!
+        indexes = xrange(len(self.options))
+        option_list = zip(indexes, self.options)
+        # Use zip!
+        for option in option_list:
+            choice_string = "%s: %s" % option
+            if self.default == option[1]:
+                choice_string += " (DEFAULT)"
+            print(choice_string)
 
-    def replace_text(self, text):
-        """Substitute items in a text string.
+        print("\nCreate a new %s by entering name/path." % self.heading)
+        choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
+                           self.default)
+        print()
 
-        text: A string with embedded %tags%.
+        if choice.isdigit():
+            result = self.options[int(choice)]
+        elif choice == '':
+            result = self.default
+        else:
+            # User provided a new object value.
+            result = choice
 
-        """
-        # Build a replacement dictionary
-        replace_dict = {}
-        replace_dict['%RECIPE_IDENTIFIER%'] = self.recipe_identifier
-        replace_dict['%PARENT_RECIPE%'] = self.parent_recipe_identifier
-        # The input variable substitution %NAME% is already used.
-        replace_dict['%PRODUCT_NAME%'] = self.name
-        replace_dict['%RECIPE_DESCRIPTION%'] = self.recipe_description
-        replace_dict['%RECIPE_PRODUCT_DESCRIPTION%'] = self.product_description
-        replace_dict['%MINIMUM_VERSION%'] = self.minimum_version
-        replace_dict['%RECIPE_PKG_CATEGORY%'] = self.pkg_category
-        replace_dict['%RECIPE_POLICY_CATEGORY%'] = self.policy_category
-        replace_dict['%RECIPE_POLICY_TEMPLATE%'] = self.policy_template
-        replace_dict['%RECIPE_GROUP_TEMPLATE%'] = self.group_template
-        replace_dict['%RECIPE_ICON%'] = self.icon
-        for key, value in replace_dict.iteritems():
-            text = text.replace(key, value)
-        return text
+        return {self.heading: result}
+
+
+def configure_jss(env):
+    """Configure a JSS object."""
+    repoUrl = env["JSS_URL"]
+    authUser = env["API_USERNAME"]
+    authPass = env["API_PASSWORD"]
+    sslVerify = env.get("JSS_VERIFY_SSL", True)
+    suppress_warnings = env.get("JSS_SUPPRESS_WARNINGS", False)
+    repos = env.get("JSS_REPOS")
+    j = jss.JSS(url=repoUrl, user=authUser, password=authPass,
+                ssl_verify=sslVerify, repo_prefs=repos,
+                suppress_warnings=suppress_warnings)
 
 
 def main():
@@ -452,20 +414,74 @@ def main():
                                      "recipes.")
     parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
     parser.add_argument("-r", "--recipe_template",
-                        help="Path to a recipe template. Defaults to a file "
+                        help="Use a recipe template. Defaults to a file "
                         "named %s in the current directory," % \
                         DEFAULT_RECIPE_TEMPLATE,
                         default=DEFAULT_RECIPE_TEMPLATE)
-    parser.add_argument("-a", "--auto", help="Uses default choices for all "
-                        "questions that have detected values. Prompts for "
-                        "those which don't.", action='store_true')
+    #parser.add_argument("-a", "--auto", help="Uses default choices for all "
+    #                    "questions that have detected values. Prompts for "
+    #                    "those which don't.", action='store_true')
 
     args = parser.parse_args()
 
-    recipe = JSSRecipeCreator(args.ParentRecipe, args.recipe_template,
-                              args.auto)
-    print(recipe.recipe)
-    recipe.recipe.write_recipe(recipe.recipe_name)
+    # Get AutoPkg configuration settings for python-jss/JSSImporter.
+    env = Plist(AUTOPKG_PREFERENCES)
+    configure_jss(env)
+
+    # Build our interactive menu
+    menu = Menu()
+
+    if not 'PKG.RECIPE' in args.ParentRecipe.upper():
+        raise Exception('Recipe must be based on a package recipe!')
+    parent_recipe = Recipe(args.ParentRecipe)
+    default_filename = args.ParentRecipe.replace('.pkg.', '.jss.')
+    menu.add_submenu(Submenu('Recipe Filename', default_filename,
+                             default_filename))
+
+    parent_recipe_id = parent_recipe['Identifier']
+    default_recipe_id = parent_recipe_id.replace('.pkg.', '.jss.')
+    menu.add_submenu(Submenu('Recipe Identifier', default_recipe_id,
+                             default_recipe_id))
+
+    # Append a JSS recipe description to the parent's string.
+    menu.results['Description'] = (parent_recipe['Description'] +
+                                   DEFAULT_RECIPE_DESC_PS)
+
+    # Use the parent's Minimum version since JSSImporter has no extra
+    # version requirements.
+    menu.results['minimum_version'] = parent_recipe['MinimumVersion']
+
+    parent_recipe_NAME = parent_recipe['Input'].get('NAME', '')
+    menu.add_submenu(Submenu('Name', parent_recipe_NAME,
+                     parent_recipe_NAME))
+
+    menu.add_submenu(Submenu('Policy Template', None, None))
+    # Needs special handling
+    menu.add_submenu(Submenu('Group', None, None))
+    menu.add_submenu(Submenu('Self Service Description', None, None))
+
+    menu.run()
+    print(menu.results)
+    #    self.handle_parent_recipe_info()
+    #    self.handle_name()
+    #    self.handle_policy_template()
+    #    self.handle_group()
+    #    self.handle_description()
+    #    self.handle_groups()
+
+    ######################################################################
+    # Parent Recipe
+    #    self.parent_recipe_path = parent_recipe_path
+    #    self.recipe_template_path = recipe_template_path
+
+    #    if self.recipe_template_path:
+    #        self.recipe = Recipe(self.recipe_template_path)
+    #    else:
+    #        self.recipe = Recipe()
+
+    #recipe = JSSRecipeCreator(args.ParentRecipe, args.recipe_template)
+    #print(recipe.recipe)
+    #recipe.recipe.write_recipe(recipe.recipe_name)
     #with open(recipe.recipe_name, 'w') as f:
     #    f.write(recipe.recipe)
 
