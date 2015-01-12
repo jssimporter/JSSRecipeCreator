@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import os.path
+import pprint
 import readline
 import subprocess
 import sys
@@ -166,19 +167,9 @@ class JSSRecipe(Recipe):
     #    tasks to individual methods.
 
     #    """
-    #    self.handle_parent_recipe_info()
-    #    self.handle_name()
-    #    self.handle_policy_template()
-    #    self.handle_group()
-    #    self.handle_description()
-    #    self.handle_groups()
-
-
 
     def handle_name(self):
-        # Determine our product name, recipe description
-        self.name = self.parent_recipe['Input'].get('NAME', '')
-        self.name = self.prompt_for_value('Name', [self.name], self.name)
+        pass
 
     def handle_categories(self):
         # Check for any defaults set in RecipeTemplate (Put an un-escaped
@@ -287,44 +278,44 @@ class JSSRecipe(Recipe):
 
 
     # Deprecated
-    #def build_recipe(self, recipe_template_path=DEFAULT_RECIPE_TEMPLATE):
-    #    """Given a recipe template, swap in all of the
-    #    values we have set up.
+    def build_recipe(self, recipe_template_path=DEFAULT_RECIPE_TEMPLATE):
+        """Given a recipe template, swap in all of the
+        values we have set up.
 
-    #    """
-    #    # Do simple text replacement on templated variables
-    #    with open(recipe_template_path, 'r') as f:
-    #        recipe = self.replace_text(f.read())
+        """
+        # Do simple text replacement on templated variables
+        with open(recipe_template_path, 'r') as f:
+            recipe = self.replace_text(f.read())
 
-    #    # Reopen as an XML document and inject the groups
-    #    raise NotImplementedError("Not done yet")
+        # Reopen as an XML document and inject the groups
+        raise NotImplementedError("Not done yet")
 
-    #    self.recipe = recipe
+        self.recipe = recipe
 
     # Deprecated
-    #def replace_text(self, text):
-    #    """Substitute items in a text string.
+    def replace_text(self, text):
+        """Substitute items in a text string.
 
-    #    text: A string with embedded %tags%.
+        text: A string with embedded %tags%.
 
-    #    """
-    #    # Build a replacement dictionary
-    #    replace_dict = {}
-    #    replace_dict['%RECIPE_IDENTIFIER%'] = self.recipe_identifier
-    #    replace_dict['%PARENT_RECIPE%'] = self.parent_recipe_identifier
-    #    # The input variable substitution %NAME% is already used.
-    #    replace_dict['%PRODUCT_NAME%'] = self.name
-    #    replace_dict['%RECIPE_DESCRIPTION%'] = self.recipe_description
-    #    replace_dict['%RECIPE_PRODUCT_DESCRIPTION%'] = self.product_description
-    #    replace_dict['%MINIMUM_VERSION%'] = self.minimum_version
-    #    replace_dict['%RECIPE_PKG_CATEGORY%'] = self.pkg_category
-    #    replace_dict['%RECIPE_POLICY_CATEGORY%'] = self.policy_category
-    #    replace_dict['%RECIPE_POLICY_TEMPLATE%'] = self.policy_template
-    #    replace_dict['%RECIPE_GROUP_TEMPLATE%'] = self.group_template
-    #    replace_dict['%RECIPE_ICON%'] = self.icon
-    #    for key, value in replace_dict.iteritems():
-    #        text = text.replace(key, value)
-    #    return text
+        """
+        # Build a replacement dictionary
+        replace_dict = {}
+        replace_dict['%RECIPE_IDENTIFIER%'] = self.recipe_identifier
+        replace_dict['%PARENT_RECIPE%'] = self.parent_recipe_identifier
+        # The input variable substitution %NAME% is already used.
+        replace_dict['%PRODUCT_NAME%'] = self.name
+        replace_dict['%RECIPE_DESCRIPTION%'] = self.recipe_description
+        replace_dict['%RECIPE_PRODUCT_DESCRIPTION%'] = self.product_description
+        replace_dict['%MINIMUM_VERSION%'] = self.minimum_version
+        replace_dict['%RECIPE_PKG_CATEGORY%'] = self.pkg_category
+        replace_dict['%RECIPE_POLICY_CATEGORY%'] = self.policy_category
+        replace_dict['%RECIPE_POLICY_TEMPLATE%'] = self.policy_template
+        replace_dict['%RECIPE_GROUP_TEMPLATE%'] = self.group_template
+        replace_dict['%RECIPE_ICON%'] = self.icon
+        for key, value in replace_dict.iteritems():
+            text = text.replace(key, value)
+        return text
 
 
 class Menu(object):
@@ -380,7 +371,6 @@ class Submenu(object):
         print("\nCreate a new %s by entering name/path." % self.heading)
         choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
                            self.default)
-        print()
 
         if choice.isdigit():
             result = self.options[int(choice)]
@@ -413,11 +403,25 @@ def main():
     parser = argparse.ArgumentParser(description="Quickly generate JSS "
                                      "recipes.")
     parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
-    parser.add_argument("-r", "--recipe_template",
-                        help="Use a recipe template. Defaults to a file "
-                        "named %s in the current directory," % \
-                        DEFAULT_RECIPE_TEMPLATE,
-                        default=DEFAULT_RECIPE_TEMPLATE)
+
+    # This part is kind of confusing:
+    # We have two options-build a JSSRecipe procedurally, or read in a recipe
+    # template. But we also want to not HAVE to specify a template, since
+    # most people will want to use one. So, we create a mutually exclusive
+    # group. If you don't specify either of the -r or -s options, it uses the
+    # default recipe template as specified in the global above. If you specify
+    # both argparse stops execution. The only other case we need to worry about
+    # is a defaulted -r value AND -s being specified on the cmdline. This is
+    # tested for in the logic later.
+    recipe_template_parser = parser.add_mutually_exclusive_group()
+    recipe_template_parser.add_argument(
+        "-r", "--recipe_template", help="Use a recipe template. Defaults to a "
+        "file named %s in the current directory," % DEFAULT_RECIPE_TEMPLATE,
+        default=DEFAULT_RECIPE_TEMPLATE)
+    recipe_template_parser.add_argument(
+        "-s", "--from_scratch", help="Do not use a recipe template; instead, "
+        "build a recipe from scratch.", action='store_true')
+
     #parser.add_argument("-a", "--auto", help="Uses default choices for all "
     #                    "questions that have detected values. Prompts for "
     #                    "those which don't.", action='store_true')
@@ -431,6 +435,7 @@ def main():
     # Build our interactive menu
     menu = Menu()
 
+    # Filename.
     if not 'PKG.RECIPE' in args.ParentRecipe.upper():
         raise Exception('Recipe must be based on a package recipe!')
     parent_recipe = Recipe(args.ParentRecipe)
@@ -438,11 +443,13 @@ def main():
     menu.add_submenu(Submenu('Recipe Filename', default_filename,
                              default_filename))
 
+    # Identifier
     parent_recipe_id = parent_recipe['Identifier']
     default_recipe_id = parent_recipe_id.replace('.pkg.', '.jss.')
     menu.add_submenu(Submenu('Recipe Identifier', default_recipe_id,
                              default_recipe_id))
 
+    # Description, Min version.
     # Append a JSS recipe description to the parent's string.
     menu.results['Description'] = (parent_recipe['Description'] +
                                    DEFAULT_RECIPE_DESC_PS)
@@ -451,25 +458,45 @@ def main():
     # version requirements.
     menu.results['minimum_version'] = parent_recipe['MinimumVersion']
 
+    # NAME
     parent_recipe_NAME = parent_recipe['Input'].get('NAME', '')
     menu.add_submenu(Submenu('Name', parent_recipe_NAME,
                      parent_recipe_NAME))
 
-    menu.add_submenu(Submenu('Policy Template', None, None))
+    # Policy Template
+    policy_template_options = [template for template in os.listdir(os.curdir)
+                               if 'XML' in
+                               os.path.splitext(template)[1].upper()]
+    if DEFAULT_POLICY_TEMPLATE in policy_template_options:
+        policy_template_default = DEFAULT_POLICY_TEMPLATE
+    else:
+        policy_template_default = ''
+    menu.add_submenu(Submenu('Policy Template', policy_template_options,
+                             policy_template_default))
+
     # Needs special handling
     menu.add_submenu(Submenu('Group', None, None))
     menu.add_submenu(Submenu('Self Service Description', None, None))
 
     menu.run()
-    print(menu.results)
-    #    self.handle_parent_recipe_info()
-    #    self.handle_name()
+    pprint.pprint(menu.results)
+
+    # Create a JSSRecipe object and use our menu results to populate.
+    # from_scratch and recipe_template are mutually exclusive
+    if args.from_scratch:
+        recipe = JSSRecipe()
+    else:
+        recipe = JSSRecipe(args.recipe_template)
+
+    pprint.pprint(recipe)
+
+    ######################################################################
+    # Reference Code
     #    self.handle_policy_template()
     #    self.handle_group()
     #    self.handle_description()
     #    self.handle_groups()
 
-    ######################################################################
     # Parent Recipe
     #    self.parent_recipe_path = parent_recipe_path
     #    self.recipe_template_path = recipe_template_path
