@@ -199,21 +199,7 @@ class JSSRecipe(Recipe):
             self.policy_category = recipe_template_policy_category
 
     def handle_policy_template(self):
-        # Policy template.
-        self.template_options = [template for template in os.listdir(os.curdir)
-                                 if 'XML' in
-                                 os.path.splitext(template)[1].upper()]
-        if DEFAULT_POLICY_TEMPLATE in self.template_options:
-            default = DEFAULT_POLICY_TEMPLATE
-        else:
-            default = ''
-        self.policy_template = self.prompt_for_value('Policy Template',
-                                                     self.template_options,
-                                                     default=default)
-
-        # Group handling.
-        self.groups = []
-        self.handle_groups()
+        pass
 
     def handle_group(self):
         # Icon (We only use png).
@@ -492,7 +478,6 @@ def main():
 
     ######################################################################
     # Reference Code
-    #    self.handle_policy_template()
     #    self.handle_group()
     #    self.handle_description()
     #    self.handle_groups()
