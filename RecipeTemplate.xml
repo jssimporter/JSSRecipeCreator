@@ -25,16 +25,16 @@
             <key>POLICY_CATEGORY</key>
             <string>Testing</string>
             <key>POLICY_TEMPLATE</key>
-            <string></string>
+            <string>PolicyTemplate.xml</string>
             <key>ICON</key>
             <string></string>
             <key>DESCRIPTION</key>
             <string></string>
         </dict>
         <key>MinimumVersion</key>
-        <string>%MINIMUM_VERSION%</string>
+        <string></string>
         <key>ParentRecipe</key>
-        <string>%PARENT_RECIPE%</string>
+        <string></string>
         <key>Process</key>
         <array>
             <dict>
