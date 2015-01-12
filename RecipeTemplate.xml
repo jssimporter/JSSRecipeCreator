@@ -13,27 +13,23 @@
 <plist version="1.0">
     <dict>
         <key>Description</key>
-        <string>%RECIPE_DESCRIPTION%</string>
+        <string></string>
         <key>Identifier</key>
-        <string>%RECIPE_IDENTIFIER%</string>
+        <string></string>
         <key>Input</key>
         <dict>
             <key>NAME</key>
-            <string>%PRODUCT_NAME%</string>
+            <string></string>
             <key>CATEGORY</key>
-            <string>%RECIPE_PKG_CATEGORY%</string>
+            <string></string>
             <key>POLICY_CATEGORY</key>
             <string>Testing</string>
             <key>POLICY_TEMPLATE</key>
-            <string>%RECIPE_DIR%/%RECIPE_POLICY_TEMPLATE%</string>
+            <string></string>
             <key>ICON</key>
-            <string>%RECIPE_DIR%/%RECIPE_ICON%</string>
-            <key>GROUP_NAME</key>
-            <string>%NAME%-update-smart</string>
-            <key>GROUP_TEMPLATE</key>
-            <string>%RECIPE_DIR%/%RECIPE_GROUP_TEMPLATE%</string>
+            <string></string>
             <key>DESCRIPTION</key>
-            <string>%RECIPE_PRODUCT_DESCRIPTION%</string>
+            <string></string>
         </dict>
         <key>MinimumVersion</key>
         <string>%MINIMUM_VERSION%</string>
