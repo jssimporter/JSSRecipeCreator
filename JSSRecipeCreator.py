@@ -338,7 +338,6 @@ class Submenu(object):
         # We're not afraid of zero-indexed lists!
         indexes = xrange(len(self.options))
         option_list = zip(indexes, self.options)
-        # Use zip!
         for option in option_list:
             choice_string = "%s: %s" % option
             if self.default == option[1]:
@@ -362,27 +361,120 @@ class Submenu(object):
 
 class ScopeSubmenu(Submenu):
     """Specialized submenu for scope questions."""
-    def __init__(self, key, options, default='', heading=''):
-        super(ScopeSubmenu, self).__init__(key, options, default, heading)
-        self.result_list = []
-        # Look for templated values first.
-        #template_groups = []
+    def __init__(self, recipe_template, j):
+        """Prepare our menu with needed data."""
+        self.recipe_template = recipe_template
+        self.j = j
 
-        # Add to results
-        #self.result_list.extend(template_groups)
-        raise NotImplementedError()
+        # Let's see what groups are available on the JSS.
+        self.jss_groups = [group.name for group in self.j.ComputerGroup()]
+
+        # Set up a list for storing desired groups to add, and grab the
+        # templated groups to add to it.
+        # Entries should be a dict of name, smart, and template_path values.
+        self.results = []
+        templated_groups = [processor['Arguments']['groups'] for processor in
+                            recipe_template['Process'] if
+                            processor['Processor'] == 'JSSImporter']
+        self.results.extend(templated_groups)
 
     def ask(self):
-        print("Scope:")
-        pprint.pprint(self.result_list)
-        response = raw_input('Do you want to specify another scoping group? '
-                             '(Y|N) ')
-        while response.upper() != 'N':
-            result_name = super(ScopeSubmenu, self).ask()
-            result_template = raw_input('SmartGroupTemplate ')
+        #choice = '*'
+        group_list = zip(xrange(len(self.jss_groups)), self.jss_groups)
+        print("Scope Selection Menu")
+        while True:
+            print("\nGroups available on the JSS:")
+            for option in group_list:
+                print("%s: %s" % option)
+            print("\nScope defined so far:")
+            pprint.pprint(self.results)
+            choice = raw_input("\nTo add a new group, enter a new name. You "
+                               "may use substition variables.\nTo select an "
+                               "existing group, enter its ID above, or its "
+                               "name.\nTo QUIT this menu, hit 'return'. ")
+            if choice.isdigit():
+                name = group_list[int(choice)][1]
+            elif choice == '':
+                break
+            else:
+                name = choice
 
-            response = raw_input('Do you want to specify another '
-                                 'scoping group? (Y|N) ')
+            # Try to see if this group already exists, and if so, whether it is
+            # smart or not.
+            try:
+                exists = self.j.ComputerGroup(name)
+                smart = to_bool(exists.findtext('is_smart'))
+            except jss.exceptions.JSSGetError:
+                exists = None
+                smart = None
+
+            if exists is not None and not smart:
+                # Existing static group: We're done
+                self.results.append({'name': name, 'smart': False, 'template':
+                                     ''})
+                continue
+            elif exists is None:
+                smart_choice = raw_input("Should this group be a smart group? "
+                                         "(Y|N) ")
+                if smart_choice.upper() == 'Y':
+                    smart = True
+                else:
+                    smart = False
+
+            if smart:
+                local_XML = [template for template in os.listdir(os.curdir) if
+                             'XML' in os.path.splitext(template)[1].upper()]
+                indexes = xrange(len(local_XML))
+                template_list = zip(indexes, local_XML)
+                for option in template_list:
+                    choice_string = "%s: %s" % option
+                    if DEFAULT_GROUP_TEMPLATE == option[1]:
+                        choice_string += " (DEFAULT)"
+                    print(choice_string)
+
+                print("\nChoose a template by selecting an ID, or entering a "
+                      "filename.")
+                template_choice = raw_input("Choose and perish: (DEFAULT "
+                                            "'%s\') " % DEFAULT_GROUP_TEMPLATE)
+
+                if template_choice.isdigit():
+                    template = template_list[int(template_choice)][1]
+                elif template_choice == '':
+                    template = DEFAULT_GROUP_TEMPLATE
+                else:
+                    template = template_choice
+
+            self.results.append({'name': name, 'smart': smart, 'template':
+                                    template})
+
+        return {'groups': self.results}
+
+
+
+# First draft
+#class ScopeSubmenu(Submenu):
+#    """Specialized submenu for scope questions."""
+#    def __init__(self, key, options, default='', heading=''):
+#        super(ScopeSubmenu, self).__init__(key, options, default, heading)
+#        self.result_list = []
+#        # Look for templated values first.
+#        #template_groups = []
+#
+#        # Add to results
+#        #self.result_list.extend(template_groups)
+#        raise NotImplementedError()
+#
+#    def ask(self):
+#        print("Scope:")
+#        pprint.pprint(self.result_list)
+#        response = raw_input('Do you want to specify another scoping group? '
+#                             '(Y|N) ')
+#        while response.upper() != 'N':
+#            result_name = super(ScopeSubmenu, self).ask()
+#            result_template = raw_input('SmartGroupTemplate ')
+#
+#            response = raw_input('Do you want to specify another '
+#                                 'scoping group? (Y|N) ')
 
 
 def configure_jss(env):
@@ -459,15 +551,7 @@ def build_menu(j, parent_recipe, recipe, args):
                              default_policy_category, 'Policy Category'))
 
     # Scope
-    ## See if we have any templated scope information.
-    #for processor in recipe['Process']:
-    #    if processor['Processor'] == 'JSSImporter':
-    #        try:
-    #            template_scope = processor['Arguments']['groups']
-    #        except KeyError:
-    #            template_scope = []
-    #group_options = [group.name for group in j.ComputerGroup()]
-    #menu.add_submenu(GroupSubmenu('groups', group_options, None, 'Group'))
+    menu.add_submenu(ScopeSubmenu(recipe, j))
 
     # Icon (We only use png).
     icon_default = parent_recipe['Input'].get('NAME', 'Icon') + '.png'
@@ -515,6 +599,19 @@ def build_argparser():
     #                    "those which don't.", action='store_true')
 
     return parser
+
+
+def to_bool(val):
+    """Convert string boolean values from JSS ComputerGroups' is_smart property
+    to true bools.
+
+    """
+    if val == 'false':
+        return False
+    elif val == 'true':
+        return True
+    else:
+        raise ValueError()
 
 
 def main():
