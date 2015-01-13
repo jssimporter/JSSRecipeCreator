@@ -267,6 +267,15 @@ class JSSRecipe(Recipe):
             text = text.replace(key, value)
         return text
 
+    def add_scoping_group(self, group):
+        """Add a group to the scope."""
+        recipe_groups = [processor['Arguments']['groups'] for processor in
+                          self['Process'] if processor['Processor'] ==
+                          'JSSImporter'][0]
+
+        if group not in recipe_groups:
+            recipe_groups.append(group)
+
     def update(self, update_dict):
         """Updates a JSSRecipe's values with those supplied by argument.
 
@@ -288,6 +297,10 @@ class JSSRecipe(Recipe):
         self['Input']['ICON'] = update_dict['ICON']
         self['Input']['DESCRIPTION'] = update_dict['DESCRIPTION']
 
+        # Handle groups
+        for group in update_dict['groups']:
+            self.add_scoping_group(group)
+
 
 class Menu(object):
     """Presents users with a menu and handles their input."""
@@ -298,6 +311,10 @@ class Menu(object):
     def run(self):
         for submenu in self.submenus:
             self.results.update(submenu.ask())
+
+    def run_auto(self):
+        for submenu in self.submenus:
+            self.results.update(submenu.ask(auto=True))
 
     def add_submenu(self, submenu):
         if isinstance(submenu, Submenu):
@@ -330,31 +347,37 @@ class Submenu(object):
             self.options = options
         self.default = default
 
-    def ask(self):
+    def ask(self, auto=False):
         """Ask user a question based on configured values."""
-        print("\nPlease choose a %s" % self.heading)
-        print("Hit enter to accept default choice, or enter a number.\n")
-
-        # We're not afraid of zero-indexed lists!
-        indexes = xrange(len(self.options))
-        option_list = zip(indexes, self.options)
-        for option in option_list:
-            choice_string = "%s: %s" % option
-            if self.default == option[1]:
-                choice_string += " (DEFAULT)"
-            print(choice_string)
-
-        print("\nCreate a new %s by entering name/path." % self.heading)
-        choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
-                           self.default)
-
-        if choice.isdigit():
-            result = self.options[int(choice)]
-        elif choice == '':
+        if auto and self.default:
             result = self.default
         else:
-            # User provided a new object value.
-            result = choice
+            print("\nPlease choose a %s" % self.heading)
+            print("Hit enter to accept default choice, or enter a number.\n")
+
+            # We're not afraid of zero-indexed lists!
+            indexes = xrange(len(self.options))
+            option_list = zip(indexes, self.options)
+            for option in option_list:
+                choice_string = "%s: %s" % option
+                if self.default == option[1]:
+                    choice_string += " (DEFAULT)"
+                print(choice_string)
+
+            print("\nCreate a new %s by entering name/path." % self.heading)
+            choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
+                            self.default)
+
+            if choice.isdigit() and in_range(int(choice), len(option_list)):
+                result = self.options[int(choice)]
+            elif choice == '':
+                result = self.default
+            elif choice.isdigit() and not in_range(int(choice),
+                                                   len(option_list)):
+                raise Exception("Invalid Choice")
+            else:
+                # User provided a new object value.
+                result = choice
 
         return {self.key: result}
 
@@ -373,108 +396,89 @@ class ScopeSubmenu(Submenu):
         # templated groups to add to it.
         # Entries should be a dict of name, smart, and template_path values.
         self.results = []
-        templated_groups = [processor['Arguments']['groups'] for processor in
-                            recipe_template['Process'] if
+        templated_groups = [templated_group for processor in
+                            recipe_template['Process'] for templated_group in processor['Arguments']['groups'] if
                             processor['Processor'] == 'JSSImporter']
         self.results.extend(templated_groups)
 
-    def ask(self):
-        #choice = '*'
-        group_list = zip(xrange(len(self.jss_groups)), self.jss_groups)
-        print("Scope Selection Menu")
-        while True:
-            print("\nGroups available on the JSS:")
-            for option in group_list:
-                print("%s: %s" % option)
-            print("\nScope defined so far:")
-            pprint.pprint(self.results)
-            choice = raw_input("\nTo add a new group, enter a new name. You "
-                               "may use substition variables.\nTo select an "
-                               "existing group, enter its ID above, or its "
-                               "name.\nTo QUIT this menu, hit 'return'. ")
-            if choice.isdigit():
-                name = group_list[int(choice)][1]
-            elif choice == '':
-                break
-            else:
-                name = choice
-
-            # Try to see if this group already exists, and if so, whether it is
-            # smart or not.
-            try:
-                exists = self.j.ComputerGroup(name)
-                smart = to_bool(exists.findtext('is_smart'))
-            except jss.exceptions.JSSGetError:
-                exists = None
-                smart = None
-
-            if exists is not None and not smart:
-                # Existing static group: We're done
-                self.results.append({'name': name, 'smart': False, 'template':
-                                     ''})
-                continue
-            elif exists is None:
-                smart_choice = raw_input("Should this group be a smart group? "
-                                         "(Y|N) ")
-                if smart_choice.upper() == 'Y':
-                    smart = True
+    def ask(self, auto=False):
+        if not auto:
+            group_list = zip(xrange(len(self.jss_groups)), self.jss_groups)
+            print("Scope Selection Menu")
+            while True:
+                print("\nGroups available on the JSS:")
+                for option in group_list:
+                    print("%s: %s" % option)
+                print("\nScope defined so far:")
+                pprint.pprint(self.results)
+                choice = raw_input("\nTo add a new group, enter a new name. You "
+                                "may use substition variables.\nTo select an "
+                                "existing group, enter its ID above, or its "
+                                "name.\nTo QUIT this menu, hit 'return'. ")
+                if choice.isdigit() and in_range(int(choice), len(group_list)):
+                    name = group_list[int(choice)][1]
+                elif choice == '':
+                    break
+                elif choice.isdigit() and not in_range(int(choice),
+                                                       len(group_list)):
+                    raise Exception("Invalid Choice")
                 else:
-                    smart = False
+                    name = choice
 
-            if smart:
-                local_XML = [template for template in os.listdir(os.curdir) if
-                             'XML' in os.path.splitext(template)[1].upper()]
-                indexes = xrange(len(local_XML))
-                template_list = zip(indexes, local_XML)
-                for option in template_list:
-                    choice_string = "%s: %s" % option
-                    if DEFAULT_GROUP_TEMPLATE == option[1]:
-                        choice_string += " (DEFAULT)"
-                    print(choice_string)
+                # Try to see if this group already exists, and if so, whether it is
+                # smart or not.
+                try:
+                    exists = self.j.ComputerGroup(name)
+                    smart = to_bool(exists.findtext('is_smart'))
+                except jss.exceptions.JSSGetError:
+                    exists = None
+                    smart = None
 
-                print("\nChoose a template by selecting an ID, or entering a "
-                      "filename.")
-                template_choice = raw_input("Choose and perish: (DEFAULT "
-                                            "'%s\') " % DEFAULT_GROUP_TEMPLATE)
+                if exists is not None and not smart:
+                    # Existing static group: We're done
+                    self.results.append({'name': name, 'smart': False})
+                    continue
+                elif exists is None:
+                    smart_choice = raw_input("Should this group be a smart group? "
+                                            "(Y|N) ")
+                    if smart_choice.upper() == 'Y':
+                        smart = True
+                    else:
+                        smart = False
 
-                if template_choice.isdigit():
-                    template = template_list[int(template_choice)][1]
-                elif template_choice == '':
-                    template = DEFAULT_GROUP_TEMPLATE
+                if smart:
+                    local_XML = [template for template in os.listdir(os.curdir) if
+                                'XML' in os.path.splitext(template)[1].upper()]
+                    indexes = xrange(len(local_XML))
+                    template_list = zip(indexes, local_XML)
+                    for option in template_list:
+                        choice_string = "%s: %s" % option
+                        if DEFAULT_GROUP_TEMPLATE == option[1]:
+                            choice_string += " (DEFAULT)"
+                        print(choice_string)
+
+                    print("\nChoose a template by selecting an ID, or entering a "
+                        "filename.")
+                    template_choice = raw_input("Choose and perish: (DEFAULT "
+                                                "'%s\') " % DEFAULT_GROUP_TEMPLATE)
+
+                    if template_choice.isdigit() and in_range(int(template_choice),
+                                                            len(template_list)):
+                        template = template_list[int(template_choice)][1]
+                    elif template_choice == '':
+                        template = DEFAULT_GROUP_TEMPLATE
+                    elif template_choice.isdigit() and not in_range(
+                        int(template_choice), len(template_list)):
+                        raise Exception("Invalid Choice")
+                    else:
+                        template = template_choice
+
+                    self.results.append({'name': name, 'smart': smart,
+                                        'template_path': template})
                 else:
-                    template = template_choice
-
-            self.results.append({'name': name, 'smart': smart, 'template':
-                                    template})
+                    self.results.append({'name': name, 'smart': smart})
 
         return {'groups': self.results}
-
-
-
-# First draft
-#class ScopeSubmenu(Submenu):
-#    """Specialized submenu for scope questions."""
-#    def __init__(self, key, options, default='', heading=''):
-#        super(ScopeSubmenu, self).__init__(key, options, default, heading)
-#        self.result_list = []
-#        # Look for templated values first.
-#        #template_groups = []
-#
-#        # Add to results
-#        #self.result_list.extend(template_groups)
-#        raise NotImplementedError()
-#
-#    def ask(self):
-#        print("Scope:")
-#        pprint.pprint(self.result_list)
-#        response = raw_input('Do you want to specify another scoping group? '
-#                             '(Y|N) ')
-#        while response.upper() != 'N':
-#            result_name = super(ScopeSubmenu, self).ask()
-#            result_template = raw_input('SmartGroupTemplate ')
-#
-#            response = raw_input('Do you want to specify another '
-#                                 'scoping group? (Y|N) ')
 
 
 def configure_jss(env):
@@ -594,9 +598,9 @@ def build_argparser():
         "-s", "--from_scratch", help="Do not use a recipe template; instead, "
         "build a recipe from scratch.", action='store_true')
 
-    #parser.add_argument("-a", "--auto", help="Uses default choices for all "
-    #                    "questions that have detected values. Prompts for "
-    #                    "those which don't.", action='store_true')
+    parser.add_argument("-a", "--auto", help="Uses default choices for all "
+                        "questions that have detected values. Prompts for "
+                        "those which don't.", action='store_true')
 
     return parser
 
@@ -612,6 +616,10 @@ def to_bool(val):
         return True
     else:
         raise ValueError()
+
+
+def in_range(val, size):
+    return val < size and val >= 0
 
 
 def main():
@@ -638,7 +646,10 @@ def main():
     menu = build_menu(j, parent_recipe, recipe, args)
 
     # Run the questions past the user.
-    menu.run()
+    if args.auto:
+        menu.run_auto()
+    else:
+        menu.run()
     print('')
     pprint.pprint(menu.results)
 
