@@ -36,19 +36,9 @@ import jss
 
 # Globals
 # Edit these if you want to change their default values.
-DEFAULT_RECIPE_TEMPLATE = 'RecipeTemplate.xml'
-DEFAULT_POLICY_TEMPLATE = 'PolicyTemplate.xml'
-DEFAULT_RECIPE_DESC_PS = " Then, uploads to the JSS."
-DEFAULT_GROUP_NAME = '%NAME%-update-smart'
-DEFAULT_GROUP_TEMPLATE = 'SmartGroupTemplate.xml'
 AUTOPKG_PREFERENCES = '~/Library/Preferences/com.github.autopkg.plist'
-RECIPE_COMMENT = ("\nThis AutoPkg recipe was created using JSSRecipeCreator: "
-                  "\nhttps://github.com/sheagcraig/JSSRecipeCreator\n\n"
-                  "It is meant to be used with JSSImporter: \n"
-                  "https://github.com/sheagcraig/JSSImporter\n\n"
-                  "For tips on integrating JSSImporter into your Casper "
-                  "environment, check out Auto Update Magic:\n"
-                  "https://github.com/homebysix/auto-update-magic")
+PREFERENCES = \
+    '~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist'
 
 __version__ = '0.1.0'
 
@@ -111,6 +101,7 @@ class Plist(dict):
 
     def write_recipe(self, path):
         """Write a recipe to path."""
+        path = os.path.expanduser(path)
         plist_data, error = NSPropertyListSerialization.dataWithPropertyList_format_options_error_(
             self._xml,
             NSPropertyListXMLFormat_v1_0,
@@ -185,7 +176,7 @@ class JSSRecipe(Recipe):
         if group not in recipe_groups:
             recipe_groups.append(group)
 
-    def update(self, update_dict):
+    def update(self, update_dict, comment=None):
         """Updates a JSSRecipe's values with those supplied by argument.
 
         update_dict         Dictionary of recipe values. Keys should
@@ -199,7 +190,8 @@ class JSSRecipe(Recipe):
         self['ParentRecipe'] = update_dict['ParentRecipe']
         self['Description'] = update_dict['Description']
         self['MinimumVersion'] = update_dict['MinimumVersion']
-        self['Comment'] = RECIPE_COMMENT
+        if comment:
+            self['Comment'] = comment
         # Input section
         self['Input']['NAME'] = update_dict['NAME']
         self['Input']['POLICY_TEMPLATE'] = '%RECIPE_DIR%/' + \
@@ -312,10 +304,11 @@ class Submenu(object):
 class ScopeSubmenu(Submenu):
     """Specialized submenu for scope questions."""
     # Subclass of Submenu only to get through type-checking for Menu.add().
-    def __init__(self, recipe_template, j):
+    def __init__(self, recipe_template, j, env):
         """Prepare our menu with needed data."""
         self.recipe_template = recipe_template
         self.j = j
+        self.env = env
 
         # Let's see what groups are available on the JSS.
         self.jss_groups = [group.name for group in self.j.ComputerGroup()]
@@ -387,29 +380,29 @@ class ScopeSubmenu(Submenu):
                     template_list = zip(indexes, local_xml)
                     for option in template_list:
                         choice_string = "%s: %s" % option
-                        if DEFAULT_GROUP_TEMPLATE == option[1]:
+                        if self.env['Default_Group_Template'] == option[1]:
                             choice_string += " (DEFAULT)"
                         print(choice_string)
 
                     print("\nChoose a template by selecting an ID, or entering"
                           "a filename.")
-                    template_choice = raw_input("Choose and perish: (DEFAULT "
-                                                "'%s\') " %
-                                                DEFAULT_GROUP_TEMPLATE)
+                    template_choice = raw_input(
+                        "Choose and perish: (DEFAULT '%s\') " %
+                        self.env['Default_Group_Template'])
 
                     if template_choice.isdigit() and in_range(
                         int(template_choice), len(template_list)):
                         #
                         template = template_list[int(template_choice)][1]
                     elif template_choice == '':
-                        template = DEFAULT_GROUP_TEMPLATE
+                        template = self.env['Default_Group_Template']
                     elif template_choice.isdigit() and not in_range(
                         int(template_choice), len(template_list)):
                         raise ChoiceError("Invalid Choice")
                     else:
                         template = template_choice
 
-                    template = '%RECIPE_DIR%' + template
+                    template = '%RECIPE_DIR%/' + template
                     self.results.append({'name': name, 'smart': smart,
                                         'template_path': template})
                 else:
@@ -432,7 +425,7 @@ def configure_jss(env):
     return j
 
 
-def build_menu(j, parent_recipe, recipe, args):
+def build_menu(j, parent_recipe, recipe, args, env):
     """Construct the menu for prompting users to create a JSS recipe."""
     menu = Menu()
 
@@ -456,7 +449,7 @@ def build_menu(j, parent_recipe, recipe, args):
     # Description, Min version.
     # Append a JSS recipe description to the parent's string.
     menu.results['Description'] = (parent_recipe['Description'] +
-                                   DEFAULT_RECIPE_DESC_PS)
+                                   env['Default_Recipe_Desc_PS'])
 
     # Use the parent's Minimum version since JSSImporter has no extra
     # version requirements.
@@ -475,8 +468,8 @@ def build_menu(j, parent_recipe, recipe, args):
     # global from above, and barring that, use ''.
     if recipe['Input'].get('POLICY_TEMPLATE'):
         policy_template_default = recipe['Input']['POLICY_TEMPLATE']
-    elif DEFAULT_POLICY_TEMPLATE in policy_template_options:
-        policy_template_default = DEFAULT_POLICY_TEMPLATE
+    elif env['Default_Policy_Template'] in policy_template_options:
+        policy_template_default = env['Default_Policy_Template']
     else:
         policy_template_default = ''
     menu.add_submenu(Submenu('POLICY_TEMPLATE', policy_template_options,
@@ -492,7 +485,7 @@ def build_menu(j, parent_recipe, recipe, args):
                              default_policy_category, 'Policy Category'))
 
     # Scope
-    menu.add_submenu(ScopeSubmenu(recipe, j))
+    menu.add_submenu(ScopeSubmenu(recipe, j, env))
 
     # Icon (We only use png).
     icon_default = parent_recipe['Input'].get('NAME', 'Icon') + '.png'
@@ -511,7 +504,7 @@ def build_menu(j, parent_recipe, recipe, args):
     return menu
 
 
-def build_argparser():
+def build_argparser(env):
     """Create our argument parser."""
     parser = argparse.ArgumentParser(description="Quickly generate JSS "
                                      "recipes.")
@@ -530,8 +523,8 @@ def build_argparser():
     recipe_template_parser = parser.add_mutually_exclusive_group()
     recipe_template_parser.add_argument(
         "-r", "--recipe_template", help="Use a recipe template. Defaults to a "
-        "file named %s in the current directory," % DEFAULT_RECIPE_TEMPLATE,
-        default=DEFAULT_RECIPE_TEMPLATE)
+        "file named %s in the current directory," %
+        env['Default_Recipe_Template'], default=env['Default_Recipe_Template'])
     recipe_template_parser.add_argument(
         "-s", "--from_scratch", help="Do not use a recipe template; instead, "
         "build a recipe from scratch.", action='store_true')
@@ -561,15 +554,41 @@ def in_range(val, size):
     return val < size and val >= 0
 
 
+def get_preferences():
+    """Ensure a preferences file exists, and open it."""
+    if os.path.exists(PREFERENCES):
+        env = Plist(PREFERENCES)
+    else:
+        env = Plist()
+        env['Default_Recipe_Template'] = 'RecipeTemplate.xml'
+        env['Default_Policy_Template'] = 'PolicyTemplate.xml'
+        env['Default_Recipe_Desc_PS'] = " Then, uploads to the JSS."
+        env['Default_Group_Template'] = 'SmartGroupTemplate.xml'
+        env['Recipe_Comment'] = \
+            ("\nThis AutoPkg recipe was created using JSSRecipeCreator: "
+             "\nhttps://github.com/sheagcraig/JSSRecipeCreator\n\n"
+             "It is meant to be used with JSSImporter: \n"
+             "https://github.com/sheagcraig/JSSImporter\n\n"
+             "For tips on integrating JSSImporter into your Casper "
+             "environment, check out Auto Update Magic:\n"
+             "https://github.com/homebysix/auto-update-magic")
+        env.write_recipe(PREFERENCES)
+
+    return env
+
+
 def main():
     """Commandline processing of JSSRecipeCreator."""
+    # Get JSSRecipeCreator preferences.
+    env = get_preferences()
+
     # Handle command line arguments
-    parser = build_argparser()
+    parser = build_argparser(env)
     args = parser.parse_args()
 
     # Get AutoPkg configuration settings for python-jss/JSSImporter.
-    env = Plist(AUTOPKG_PREFERENCES)
-    j = configure_jss(env)
+    autopkg_env = Plist(AUTOPKG_PREFERENCES)
+    j = configure_jss(autopkg_env)
 
     # Create a JSSRecipe object
     # from_scratch and recipe_template are mutually exclusive
@@ -582,7 +601,7 @@ def main():
     parent_recipe = Recipe(args.ParentRecipe)
 
     # Build our interactive menu
-    menu = build_menu(j, parent_recipe, recipe, args)
+    menu = build_menu(j, parent_recipe, recipe, args, env)
 
     # Run the questions past the user.
     if args.auto:
@@ -593,7 +612,7 @@ def main():
     pprint.pprint(menu.results)
 
     # Merge the answers with the JSSRecipe.
-    recipe.update(menu.results)
+    recipe.update(menu.results, env['Recipe_Comment'])
     recipe.write_recipe(menu.results['Recipe Filename'])
 
     # Final output.
