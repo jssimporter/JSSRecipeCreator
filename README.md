@@ -6,9 +6,9 @@ This brief script allows one to rapidly make JSS recipes based on a set of templ
 It has python-jss as a dependency, although if you're worried about making JSS recipes, you probably already have this. If not, grab it *with* the JSSImporter [here](https://www.github.com/sheagcraig/JSSImporter), and make sure it's set up. It is used to grab existing category and computer group information.
 
 You will need some template files to make this work:
-- RecipeTemplate: (Optional) Allows you to specify values that are common to all of your recipes. JSSRecipeCreator will search the current directory for a file named RecipeTemplate.xml (which can be configured in the globals). If it is present, it will be used. If there is no RecipeTemplate.xml, JSSRecipeCreator will create a blank recipe XML structure to fill for you. For more info, see the Recipe Template section below. You can also run JSSRecipeCreator with the ```-s``` flag to force creating a recipe on the fly, or the ```-r``` option to specify a different recipe template than the default.
-- PolicyTemplate: This is the PolicyTemplate file you use with your JSSImporter recipes. The file doesn't actually need to be present, but if you copy it to the directory JSSRecipeCreator is running from, it will magically appear in the menu as an option, rather than having to key it in. Defaults to "PolicyTemplate.xml" (but you can change it in the globals section at the top of JSSRecipeCreator).
-- SmartGroupTemplates: For each unique smart group you intend on using, you will need a SmartGroupTemplate (see the JSSImporter documentation for the structure of these). Again, it doesn't have to be present, but having it in the current working directory will allow default-discovery and speed up your process. The globals section specifies 'SmartGroupTemplate.xml' as the default choice, which can of course be changed to suit your needs.
+- RecipeTemplate: (Optional) Allows you to specify values that are common to all of your recipes. JSSRecipeCreator will search the current directory for a file named RecipeTemplate.xml (which can be configured in the preferences). If it is present, it will be used. If there is no RecipeTemplate.xml, JSSRecipeCreator will create a blank recipe XML structure to fill for you. For more info, see the Recipe Template section below. You can also run JSSRecipeCreator with the ```-s``` flag to force creating a recipe on the fly, or the ```-r``` option to specify a different recipe template than the default.
+- PolicyTemplate: This is the PolicyTemplate file you use with your JSSImporter recipes. The file doesn't actually need to be present, but if you copy it to the directory JSSRecipeCreator is running from, it will magically appear in the menu as an option, rather than having to key it in. Defaults to "PolicyTemplate.xml" (but you can change it in the preferences).
+- SmartGroupTemplates: For each unique smart group you intend on using, you will need a SmartGroupTemplate (see the JSSImporter documentation for the structure of these). Again, it doesn't have to be present, but having it in the current working directory will allow default-discovery and speed up your process. The preferences by default specifies 'SmartGroupTemplate.xml' as the default choice, which can of course be changed to suit your needs.
 
 
 Usage
@@ -37,17 +37,20 @@ NOTE: All paths have %RECIPE_DIR% prepended to them to make sure everything work
 
 Advanced Options
 =================
-- ```-r / --recipe_template RECIPE_TEMPLATE``` allows you to specify an alternate recipe template file (default behavior is to use the one in the current working directory specified in the global ```DEFAULT_RECIPE_TEMPLATE```, which is provided as ```RecipeTemplate.xml``` May not be used with ```-s```.
+- ```-r / --recipe_template RECIPE_TEMPLATE``` allows you to specify an alternate recipe template file (default behavior is to use the one in the current working directory specified in the preference```Default_Recipe_Template```, which is provided as ```RecipeTemplate.xml``` May not be used with ```-s```.
 - ```-s / ---from_scratch``` Do not use a recipe template. Creates a recipe file from scratch. May not be used with ```-r```.
 - ```-a / --auto``` Speed up recipe creation even more! Automatically chooses default values whenever possible, only prompting you when there isn't one.
 
+Preferences
+=================
+JSSRecipeCreator uses a preference file located at ```~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist``` to store all of its default preferences. If this file is missing, one will be populated with the default values for you. You can edit these values to match your organization's needs, and the keys are all pretty self-explanatory.
 
 Recipe Template
 =================
 You will need a recipe template file for the JSSRecipeCreator to base its recipes from. If you have a working JSS recipe and workflow, you can start from it.
 
 Except for scoping groups (the ```groups``` argument) and recipe values (like Identifier or MinimumVersion), JSSRecipeCreator adds all values to the INPUT section of a recipe, and your JSSImporter arguments should reference those INPUT variable names appropriately (see the provided RecipeTemplate.xml for an example. The specific INPUT variables managed (and thus they should be included in your template) are: 
-- ```Comment``` (Extra comments you want to add, like author name. Can be set with the global RECIPE_COMMENT)
+- ```Comment``` (Extra comments you want to add, like author name. Can be set with the preference ```Recipe_Comment```)
 - ```Description```
 - ```Identifier```
 - ```CATEGORY``` (Package Category)
