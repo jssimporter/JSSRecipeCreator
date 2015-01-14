@@ -42,6 +42,13 @@ DEFAULT_RECIPE_DESC_PS = " Then, uploads to the JSS."
 DEFAULT_GROUP_NAME = '%NAME%-update-smart'
 DEFAULT_GROUP_TEMPLATE = 'SmartGroupTemplate.xml'
 AUTOPKG_PREFERENCES = '~/Library/Preferences/com.github.autopkg.plist'
+RECIPE_COMMENT = ("\nThis AutoPkg recipe was created using JSSRecipeCreator: "
+                  "\nhttps://github.com/sheagcraig/JSSRecipeCreator\n\n"
+                  "It is meant to be used with JSSImporter: \n"
+                  "https://github.com/sheagcraig/JSSImporter\n\n"
+                  "For tips on integrating JSSImporter into your Casper "
+                  "environment, check out Auto Update Magic:\n"
+                  "https://github.com/homebysix/auto-update-magic")
 
 __version__ = '0.1.0'
 
@@ -188,12 +195,14 @@ class JSSRecipe(Recipe):
         self['ParentRecipe'] = update_dict['ParentRecipe']
         self['Description'] = update_dict['Description']
         self['MinimumVersion'] = update_dict['MinimumVersion']
+        self['Comment'] = RECIPE_COMMENT
         # Input section
         self['Input']['NAME'] = update_dict['NAME']
-        self['Input']['POLICY_TEMPLATE'] = update_dict['POLICY_TEMPLATE']
+        self['Input']['POLICY_TEMPLATE'] = '%RECIPE_DIR%/' + \
+            update_dict['POLICY_TEMPLATE']
         self['Input']['POLICY_CATEGORY'] = update_dict['POLICY_CATEGORY']
         self['Input']['CATEGORY'] = update_dict['CATEGORY']
-        self['Input']['ICON'] = update_dict['ICON']
+        self['Input']['ICON'] = '%RECIPE_DIR%/' + update_dict['ICON']
         self['Input']['DESCRIPTION'] = update_dict['DESCRIPTION']
 
         # Handle groups
@@ -389,6 +398,7 @@ class ScopeSubmenu(Submenu):
                     else:
                         template = template_choice
 
+                    template = '%RECIPE_DIR%' + template
                     self.results.append({'name': name, 'smart': smart,
                                         'template_path': template})
                 else:
@@ -573,6 +583,7 @@ def main():
 
     # Merge the answers with the JSSRecipe.
     recipe.update(menu.results)
+    recipe.write_recipe(menu.results['Recipe Filename'])
 
     # Final output.
     print('')
