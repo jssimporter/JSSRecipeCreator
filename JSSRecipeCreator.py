@@ -52,6 +52,10 @@ RECIPE_COMMENT = ("\nThis AutoPkg recipe was created using JSSRecipeCreator: "
 
 __version__ = '0.1.0'
 
+class ChoiceError(Exception):
+    """An invalid choice was made."""
+    pass
+
 
 class Plist(dict):
     """Abbreviated plist representation (as a dict) with methods for
@@ -219,7 +223,14 @@ class Menu(object):
     def run(self):
         """Run, in order, through our submenus, asking questions."""
         for submenu in self.submenus:
-            self.results.update(submenu.ask())
+            while True:
+                try:
+                    result = submenu.ask()
+                    break
+                except ChoiceError:
+                    print("\n**Invalid entry! Try again.**")
+                    continue
+            self.results.update(result)
 
     def run_auto(self):
         """Run, in order, through our submenus, asking only questions
@@ -290,7 +301,7 @@ class Submenu(object):
                 result = self.default
             elif choice.isdigit() and not in_range(int(choice),
                                                    len(option_list)):
-                raise Exception("Invalid Choice")
+                raise ChoiceError("Invalid Choice")
             else:
                 # User provided a new object value.
                 result = choice
@@ -334,14 +345,14 @@ class ScopeSubmenu(Submenu):
                                    "You  may use substition variables.\nTo "
                                    "select an existing group, enter its ID "
                                    "above, or its name.\nTo QUIT this menu, "
-                                   "hit 'return'.")
+                                   "hit 'return'. ")
                 if choice.isdigit() and in_range(int(choice), len(group_list)):
                     name = group_list[int(choice)][1]
                 elif choice == '':
                     break
                 elif choice.isdigit() and not in_range(int(choice),
                                                        len(group_list)):
-                    raise Exception("Invalid Choice")
+                    raise ChoiceError("Invalid Choice")
                 else:
                     name = choice
 
@@ -394,7 +405,7 @@ class ScopeSubmenu(Submenu):
                         template = DEFAULT_GROUP_TEMPLATE
                     elif template_choice.isdigit() and not in_range(
                         int(template_choice), len(template_list)):
-                        raise Exception("Invalid Choice")
+                        raise ChoiceError("Invalid Choice")
                     else:
                         template = template_choice
 
