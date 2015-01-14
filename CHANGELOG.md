@@ -1,10 +1,19 @@
-### 0.0.4 (UNRELEASED) Michaelangelo is a Party Dude
+### 0.1.0 (January 14, 2015) Michaelangelo is a Party Dude
 
 CHANGES:
 
 - Apparently I named the script file JSSRecipeGenerator.py, despite *every* other instance. Everything has been normalized to JSSRecipeCreator. Sorry for the confusion!
 - Added comment to RecipeTemplate to help spread the word.
-- Refactored code into real objects.
+- Massively refactored for better design.
+- Added some more global settings to control default values.
+- A RecipeTemplate is no longer required. It can create jss.recipes from scratch.
+	- You can also create a blank AutoPkg recipe if you use the code as a module.
+- Added -a/--auto argument. Uses all default settings without prompting, and only prompts for those which don't have a default.
+- You may now add as many scoping groups as you want. Please see the README.
+- User choices are now validated.
+- RecipeTemplates now no longer need "replacement variables".
+	- Thus, all replacement variables have been removed from the provided template.
+- Included a copy of the standard JSSImporter SmartGroup and Policy templates, as well as updated documentation to indicate the advantage of them being present in the CWD.
 
 FIXES:
 

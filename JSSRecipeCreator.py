@@ -25,7 +25,6 @@ import os.path
 import pprint
 import readline
 import subprocess
-import sys
 
 from Foundation import (NSData,
                         NSPropertyListSerialization,
@@ -44,12 +43,12 @@ DEFAULT_GROUP_NAME = '%NAME%-update-smart'
 DEFAULT_GROUP_TEMPLATE = 'SmartGroupTemplate.xml'
 AUTOPKG_PREFERENCES = '~/Library/Preferences/com.github.autopkg.plist'
 
-__version__ = '0.0.4'
+__version__ = '0.1.0'
 
 
 class Plist(dict):
-    """Abbreviated plist representation (as a dict) with methods for reading,
-    writing, and creating blank plists.
+    """Abbreviated plist representation (as a dict) with methods for
+    reading, writing, and creating blank plists.
 
     """
     def __init__(self, filename=None):
@@ -87,7 +86,7 @@ class Plist(dict):
         path = os.path.expanduser(path)
         if not (os.path.isfile(path)):
             raise Exception("File does not exist: %s" % path)
-        info, format, error = \
+        info, pformat, error = \
             NSPropertyListSerialization.propertyListWithData_options_format_error_(
                 NSData.dataWithContentsOfFile_(path),
                 NSPropertyListMutableContainers,
@@ -113,7 +112,7 @@ class Plist(dict):
             if plist_data.writeToFile_atomically_(path, True):
                 return
             else:
-                raise Exception("Failed writing data to %s" % data)
+                raise Exception("Failed writing data to %s" % path)
 
     def new_plist(self):
         """Generate a barebones recipe plist."""
@@ -122,8 +121,8 @@ class Plist(dict):
 
 class Recipe(Plist):
     """Represents a recipe plist file, with methods for reading existing
-    recipes and saving them again. Overrides dict, so most idioms and patterns
-    apply.
+    recipes and saving them again. Overrides dict, so most idioms and
+    patterns apply.
 
     """
     def new_plist(self):
@@ -145,67 +144,6 @@ class JSSRecipe(Recipe):
     their values.
 
     """
-    def handle_name(self):
-        pass
-
-    def handle_categories(self):
-        pass
-
-    def handle_policy_template(self):
-        pass
-
-    def handle_group(self):
-        pass
-
-    def handle_description(self):
-        pass
-    def handle_groups(self):
-        """Present user with a menu for adding an arbitrary number of groups.
-        For each group desired, we need a name, and whether the group is
-        smart or not (and if smart, we need a SmartGroupTemplate).
-        The RecipeCreator will then add an Input Variable for each group,
-        as well as an array item in the JSSImporter/Arguments/Groups
-        section, so that users can override the values if needed.
-        The AutoPkg env is checked to ensure there aren't any foreseeable
-        name collisions.
-
-        """
-
-        # Figure out which groups are already available on the JSS
-        self.jss_groups = [group.name for group in self.j.ComputerGroup()]
-
-        choice = raw_input('Would you like to add a scoping group? (Y|N) ')
-        while str(choice).upper() != 'N':
-            self.groups.append(self.group_menu())
-            choice = raw_input('Would you like to add another scoping group?'
-                               '(Y|N) ')
-
-        #recipe_template_groups = [processor['Arguments']['groups'] for processor in recipe_template['Process'] if processor['Processor'] == 'JSSImporter']
-        #self.group_name = self.prompt_for_value('Group Name', groups,)
-
-    def group_menu(self):
-        print('Enter name of group, substition variable to use (enclosed in'
-              '" %% "), or hit enter to use the default name %s:' %
-              DEFAULT_GROUP_NAME)
-        #name = raw_input('(name|%%variable%%|Enter for %s) ' %
-        #                 DEFAULT_GROUP_NAME)
-        name = self.prompt_for_value('name', self.jss_groups,
-                                     default=DEFAULT_GROUP_NAME)
-
-        if DEFAULT_GROUP_TEMPLATE in self.template_options:
-            default = DEFAULT_GROUP_TEMPLATE
-        else:
-            default = ''
-        smart = raw_input('Should the group be "Smart"? (Y|N) ')
-        if smart.upper() == 'Y':
-            smart_group_template = self.prompt_for_value('Group Template',
-                                                     self.template_options,
-                                                     default=default)
-        else:
-            smart_group_template = None
-
-        return {'name': name, 'smart_group_template': smart_group_template}
-
     def new_plist(self):
         super(JSSRecipe, self).new_plist()
 
@@ -227,46 +165,6 @@ class JSSRecipe(Recipe):
                                                '%DESCRIPTION%',
                                                'groups': [] }}]
 
-    # Deprecated
-    def build_recipe(self, recipe_template_path=DEFAULT_RECIPE_TEMPLATE):
-        """Given a recipe template, swap in all of the
-        values we have set up.
-
-        """
-        # Do simple text replacement on templated variables
-        with open(recipe_template_path, 'r') as f:
-            recipe = self.replace_text(f.read())
-
-        # Reopen as an XML document and inject the groups
-        raise NotImplementedError("Not done yet")
-
-        self.recipe = recipe
-
-    # Deprecated
-    def replace_text(self, text):
-        """Substitute items in a text string.
-
-        text: A string with embedded %tags%.
-
-        """
-        # Build a replacement dictionary
-        replace_dict = {}
-        replace_dict['%RECIPE_IDENTIFIER%'] = self.recipe_identifier
-        replace_dict['%PARENT_RECIPE%'] = self.parent_recipe_identifier
-        # The input variable substitution %NAME% is already used.
-        replace_dict['%PRODUCT_NAME%'] = self.name
-        replace_dict['%RECIPE_DESCRIPTION%'] = self.recipe_description
-        replace_dict['%RECIPE_PRODUCT_DESCRIPTION%'] = self.product_description
-        replace_dict['%MINIMUM_VERSION%'] = self.minimum_version
-        replace_dict['%RECIPE_PKG_CATEGORY%'] = self.pkg_category
-        replace_dict['%RECIPE_POLICY_CATEGORY%'] = self.policy_category
-        replace_dict['%RECIPE_POLICY_TEMPLATE%'] = self.policy_template
-        replace_dict['%RECIPE_GROUP_TEMPLATE%'] = self.group_template
-        replace_dict['%RECIPE_ICON%'] = self.icon
-        for key, value in replace_dict.iteritems():
-            text = text.replace(key, value)
-        return text
-
     def add_scoping_group(self, group):
         """Add a group to the scope."""
         recipe_groups = [processor['Arguments']['groups'] for processor in
@@ -279,12 +177,13 @@ class JSSRecipe(Recipe):
     def update(self, update_dict):
         """Updates a JSSRecipe's values with those supplied by argument.
 
-        update_dict         Dictionary of recipe values. Keys should match
-                            the desired INPUT variable name.
+        update_dict         Dictionary of recipe values. Keys should
+                            match the desired INPUT variable name.
 
         """
-        # This is tightly coupled with the INPUT variable key names I have
-        # chosen. This would be a good target for the next refactoring.
+        # This is tightly coupled with the INPUT variable key names I
+        # have chosen. This would be a good target for the next
+        # refactoring.
         self['Identifier'] = update_dict['Identifier']
         self['ParentRecipe'] = update_dict['ParentRecipe']
         self['Description'] = update_dict['Description']
@@ -309,14 +208,20 @@ class Menu(object):
         self.results = {}
 
     def run(self):
+        """Run, in order, through our submenus, asking questions."""
         for submenu in self.submenus:
             self.results.update(submenu.ask())
 
     def run_auto(self):
+        """Run, in order, through our submenus, asking only questions
+        which do not have default values.
+
+        """
         for submenu in self.submenus:
             self.results.update(submenu.ask(auto=True))
 
     def add_submenu(self, submenu):
+        """Add a submenu to our questions list."""
         if isinstance(submenu, Submenu):
             self.submenus.append(submenu)
         else:
@@ -329,8 +234,10 @@ class Submenu(object):
         """Create a submenu.
 
         key:                Name of INPUT variable key.
-        heading:            The name of the things (e.g. Category, Icon).
-        options:            List of potential values string "name" values. Will
+        heading:            The name of the things (e.g. Category,
+                            Icon).
+        options:            List of potential values string "name"
+                            values. Will
                             also accept a single value.
         default:            The default choice (to accept, hit enter).
 
@@ -384,6 +291,7 @@ class Submenu(object):
 
 class ScopeSubmenu(Submenu):
     """Specialized submenu for scope questions."""
+    # Subclass of Submenu only to get through type-checking for Menu.add().
     def __init__(self, recipe_template, j):
         """Prepare our menu with needed data."""
         self.recipe_template = recipe_template
@@ -394,10 +302,12 @@ class ScopeSubmenu(Submenu):
 
         # Set up a list for storing desired groups to add, and grab the
         # templated groups to add to it.
-        # Entries should be a dict of name, smart, and template_path values.
+        # Entries should be a dict of name, smart, and
+        # template_path values.
         self.results = []
         templated_groups = [templated_group for processor in
-                            recipe_template['Process'] for templated_group in processor['Arguments']['groups'] if
+                            recipe_template['Process'] for templated_group in
+                            processor['Arguments']['groups'] if
                             processor['Processor'] == 'JSSImporter']
         self.results.extend(templated_groups)
 
@@ -411,10 +321,11 @@ class ScopeSubmenu(Submenu):
                     print("%s: %s" % option)
                 print("\nScope defined so far:")
                 pprint.pprint(self.results)
-                choice = raw_input("\nTo add a new group, enter a new name. You "
-                                "may use substition variables.\nTo select an "
-                                "existing group, enter its ID above, or its "
-                                "name.\nTo QUIT this menu, hit 'return'. ")
+                choice = raw_input("\nTo add a new group, enter a new name. "
+                                   "You  may use substition variables.\nTo "
+                                   "select an existing group, enter its ID "
+                                   "above, or its name.\nTo QUIT this menu, "
+                                   "hit 'return'.")
                 if choice.isdigit() and in_range(int(choice), len(group_list)):
                     name = group_list[int(choice)][1]
                 elif choice == '':
@@ -425,7 +336,8 @@ class ScopeSubmenu(Submenu):
                 else:
                     name = choice
 
-                # Try to see if this group already exists, and if so, whether it is
+                # Try to see if this group already exists, and if so,
+                # whether it is
                 # smart or not.
                 try:
                     exists = self.j.ComputerGroup(name)
@@ -439,7 +351,8 @@ class ScopeSubmenu(Submenu):
                     self.results.append({'name': name, 'smart': False})
                     continue
                 elif exists is None:
-                    smart_choice = raw_input("Should this group be a smart group? "
+                    smart_choice = raw_input(
+                        "Should this group be a smart group? "
                                             "(Y|N) ")
                     if smart_choice.upper() == 'Y':
                         smart = True
@@ -447,23 +360,26 @@ class ScopeSubmenu(Submenu):
                         smart = False
 
                 if smart:
-                    local_XML = [template for template in os.listdir(os.curdir) if
-                                'XML' in os.path.splitext(template)[1].upper()]
-                    indexes = xrange(len(local_XML))
-                    template_list = zip(indexes, local_XML)
+                    local_xml = [template for template in os.listdir(os.curdir)
+                                 if 'XML' in
+                                 os.path.splitext(template)[1].upper()]
+                    indexes = xrange(len(local_xml))
+                    template_list = zip(indexes, local_xml)
                     for option in template_list:
                         choice_string = "%s: %s" % option
                         if DEFAULT_GROUP_TEMPLATE == option[1]:
                             choice_string += " (DEFAULT)"
                         print(choice_string)
 
-                    print("\nChoose a template by selecting an ID, or entering a "
-                        "filename.")
+                    print("\nChoose a template by selecting an ID, or entering"
+                          "a filename.")
                     template_choice = raw_input("Choose and perish: (DEFAULT "
-                                                "'%s\') " % DEFAULT_GROUP_TEMPLATE)
+                                                "'%s\') " %
+                                                DEFAULT_GROUP_TEMPLATE)
 
-                    if template_choice.isdigit() and in_range(int(template_choice),
-                                                            len(template_list)):
+                    if template_choice.isdigit() and in_range(
+                        int(template_choice), len(template_list)):
+                        #
                         template = template_list[int(template_choice)][1]
                     elif template_choice == '':
                         template = DEFAULT_GROUP_TEMPLATE
@@ -483,14 +399,14 @@ class ScopeSubmenu(Submenu):
 
 def configure_jss(env):
     """Configure a JSS object."""
-    repoUrl = env["JSS_URL"]
-    authUser = env["API_USERNAME"]
-    authPass = env["API_PASSWORD"]
-    sslVerify = env.get("JSS_VERIFY_SSL", True)
+    repo_url = env["JSS_URL"]
+    auth_user = env["API_USERNAME"]
+    auth_pass = env["API_PASSWORD"]
+    ssl_verify = env.get("JSS_VERIFY_SSL", True)
     suppress_warnings = env.get("JSS_SUPPRESS_WARNINGS", False)
     repos = env.get("JSS_REPOS")
-    j = jss.JSS(url=repoUrl, user=authUser, password=authPass,
-                ssl_verify=sslVerify, repo_prefs=repos,
+    j = jss.JSS(url=repo_url, user=auth_user, password=auth_pass,
+                ssl_verify=ssl_verify, repo_prefs=repos,
                 suppress_warnings=suppress_warnings)
     return j
 
@@ -526,16 +442,16 @@ def build_menu(j, parent_recipe, recipe, args):
     menu.results['MinimumVersion'] = parent_recipe['MinimumVersion']
 
     # NAME
-    parent_recipe_NAME = parent_recipe['Input'].get('NAME', '')
-    menu.add_submenu(Submenu('NAME', parent_recipe_NAME,
-                     parent_recipe_NAME))
+    parent_recipe_name = parent_recipe['Input'].get('NAME', '')
+    menu.add_submenu(Submenu('NAME', parent_recipe_name,
+                     parent_recipe_name))
 
     # Policy Template
     policy_template_options = [template for template in os.listdir(os.curdir)
                                if 'XML' in
                                os.path.splitext(template)[1].upper()]
-    # Check for a value supplied in the template; then fall back to the global
-    # from above, and barring that, use ''.
+    # Check for a value supplied in the template; then fall back to the
+    # global from above, and barring that, use ''.
     if recipe['Input'].get('POLICY_TEMPLATE'):
         policy_template_default = recipe['Input']['POLICY_TEMPLATE']
     elif DEFAULT_POLICY_TEMPLATE in policy_template_options:
@@ -581,14 +497,15 @@ def build_argparser():
     parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
 
     # This part is kind of confusing:
-    # We have two options-build a JSSRecipe procedurally, or read in a recipe
-    # template. But we also want to not HAVE to specify a template, since
-    # most people will want to use one. So, we create a mutually exclusive
-    # group. If you don't specify either of the -r or -s options, it uses the
-    # default recipe template as specified in the global above. If you specify
-    # both argparse stops execution. The only other case we need to worry about
-    # is a defaulted -r value AND -s being specified on the cmdline. This is
-    # tested for in the logic later.
+    # We have two options-build a JSSRecipe procedurally, or read in a
+    # recipe template. But we also want to not HAVE to specify a
+    # template, since most people will want to use one. So, we create a
+    # mutually exclusive group. If you don't specify either of the -r or
+    # -s options, it uses the default recipe template as specified in
+    # the global above. If you specify both argparse stops execution.
+    # The only other case we need to worry about is a defaulted -r value
+    # AND -s being specified on the cmdline. This is tested for in the
+    # logic later.
     recipe_template_parser = parser.add_mutually_exclusive_group()
     recipe_template_parser.add_argument(
         "-r", "--recipe_template", help="Use a recipe template. Defaults to a "
@@ -606,8 +523,8 @@ def build_argparser():
 
 
 def to_bool(val):
-    """Convert string boolean values from JSS ComputerGroups' is_smart property
-    to true bools.
+    """Convert string boolean values from JSS ComputerGroups' is_smart
+    property to true bools.
 
     """
     if val == 'false':
@@ -619,6 +536,7 @@ def to_bool(val):
 
 
 def in_range(val, size):
+    """Determine whether a value x is within the range 0 > x <= size."""
     return val < size and val >= 0
 
 
@@ -659,7 +577,6 @@ def main():
     # Final output.
     print('')
     pprint.pprint(recipe)
-    recipe.write_recipe(menu.results['Recipe Filename'])
     print('')
     print("Checking plist syntax...")
     subprocess.check_call(['plutil', '-lint', menu.results['Recipe Filename']])
