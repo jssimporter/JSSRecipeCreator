@@ -1,15 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!--
-    This AutoPkg recipe was created using JSSRecipeCreator:
-        https://github.com/sheagcraig/JSSRecipeCreator
-    
-    It is meant to be used with JSSImporter:
-        https://github.com/sheagcraig/JSSImporter
-    
-    For tips on integrating JSSImporter into your Casper environment, check out Auto Update Magic:
-        https://github.com/homebysix/auto-update-magic
--->
 <plist version="1.0">
     <dict>
         <key>Description</key>
@@ -30,6 +20,10 @@
             <string></string>
             <key>DESCRIPTION</key>
             <string></string>
+            <key>GROUP_NAME</key>
+            <string>%NAME%-update-smart</string>
+            <key>GROUP_TEMPLATE</key>
+            <string>%RECIPE_DIR%/SmartGroupTemplate.xml</string>
         </dict>
         <key>MinimumVersion</key>
         <string></string>
