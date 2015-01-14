@@ -32,6 +32,8 @@ Then follow the prompts. For each prompt, you can type a number to select from a
 
 Acute users will notice that there is no prompt for minimum_version. JSSRecipeCreator just pulls it from the parent recipe. Usually JSS recipes don't include a lot of other, newer AutoPkg processors or features, so this shouldn't make or break your recipe. It also handles ParentRecipe.
 
+NOTE: All paths have %RECIPE_DIR% prepended to them to make sure everything works correctly.
+
 
 Advanced Options
 =================
