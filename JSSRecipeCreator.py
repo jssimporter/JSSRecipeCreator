@@ -23,13 +23,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import os.path
 import pprint
-import readline
+import readline  # pylint: disable=unused-import
 import subprocess
 
+# pylint: disable=no-name-in-module
 from Foundation import (NSData,
                         NSPropertyListSerialization,
                         NSPropertyListMutableContainers,
                         NSPropertyListXMLFormat_v1_0)
+# pylint: enable=no-name-in-module
 
 import jss
 
@@ -37,12 +39,17 @@ import jss
 # Globals
 # Edit these if you want to change their default values.
 AUTOPKG_PREFERENCES = '~/Library/Preferences/com.github.autopkg.plist'
-PREFERENCES = \
-    '~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist'
+PREFERENCES = '~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist'
 
 __version__ = '0.1.0'
 
-class ChoiceError(Exception):
+
+class Error(Exception):
+    """Module base exception."""
+    pass
+
+
+class ChoiceError(Error):
     """An invalid choice was made."""
     pass
 
@@ -87,13 +94,15 @@ class Plist(dict):
         path = os.path.expanduser(path)
         if not os.path.isfile(path):
             raise Exception("File does not exist: %s" % path)
-        info, pformat, error = \
+        # pylint: disable=unused-variable
+        info, pformat, error = (
             NSPropertyListSerialization.propertyListWithData_options_format_error_(
                 NSData.dataWithContentsOfFile_(path),
                 NSPropertyListMutableContainers,
                 None,
                 None
-            )
+            ))
+        # pylint: enable=unused-variable
         if error:
             raise Exception("Can't read %s: %s" % (path, error))
 
@@ -194,11 +203,11 @@ class JSSRecipe(Recipe):
             self['Comment'] = comment
         # Input section
         self['Input']['NAME'] = update_dict['NAME']
-        self['Input']['POLICY_TEMPLATE'] = '%RECIPE_DIR%/' + \
-            update_dict['POLICY_TEMPLATE']
+        self['Input']['POLICY_TEMPLATE'] = ('%%RECIPE_DIR%%/%s' %
+            update_dict['POLICY_TEMPLATE'])
         self['Input']['POLICY_CATEGORY'] = update_dict['POLICY_CATEGORY']
         self['Input']['CATEGORY'] = update_dict['CATEGORY']
-        self['Input']['ICON'] = '%RECIPE_DIR%/' + update_dict['ICON']
+        self['Input']['ICON'] = '%%RECIPE_DIR%%/%s' % update_dict['ICON']
         self['Input']['DESCRIPTION'] = update_dict['DESCRIPTION']
 
         # Handle groups
@@ -240,6 +249,7 @@ class Menu(object):
             raise Exception("Only Submenu may be added!")
 
 
+# pylint: disable=too-few-public-methods
 class Submenu(object):
     """Represents an individual menu 'question'."""
     def __init__(self, key, options, default='', heading=''):
@@ -299,6 +309,7 @@ class Submenu(object):
                 result = choice
 
         return {self.key: result}
+# pylint: enable=too-few-public-methods
 
 
 class ScopeSubmenu(Submenu):
@@ -354,10 +365,13 @@ class ScopeSubmenu(Submenu):
                 # smart or not.
                 try:
                     exists = self.j.ComputerGroup(name)
-                    smart = to_bool(exists.findtext('is_smart'))
                 except jss.exceptions.JSSGetError:
                     exists = None
-                    smart = None
+                finally:
+                    if exists:
+                        smart = to_bool(exists.findtext('is_smart'))
+                    else:
+                        smart = None
 
                 if exists is not None and not smart:
                     # Existing static group: We're done
@@ -561,14 +575,14 @@ def get_preferences():
         env['Default_Policy_Template'] = 'PolicyTemplate.xml'
         env['Default_Recipe_Desc_PS'] = " Then, uploads to the JSS."
         env['Default_Group_Template'] = 'SmartGroupTemplate.xml'
-        env['Recipe_Comment'] = \
-            ("\nThis AutoPkg recipe was created using JSSRecipeCreator: "
-             "\nhttps://github.com/sheagcraig/JSSRecipeCreator\n\n"
-             "It is meant to be used with JSSImporter: \n"
-             "https://github.com/sheagcraig/JSSImporter\n\n"
-             "For tips on integrating JSSImporter into your Casper "
-             "environment, check out Auto Update Magic:\n"
-             "https://github.com/homebysix/auto-update-magic")
+        env['Recipe_Comment'] = (
+            "\nThis AutoPkg recipe was created using JSSRecipeCreator: "
+            "\nhttps://github.com/sheagcraig/JSSRecipeCreator\n\n"
+            "It is meant to be used with JSSImporter: \n"
+            "https://github.com/sheagcraig/JSSImporter\n\n"
+            "For tips on integrating JSSImporter into your Casper "
+            "environment, check out Auto Update Magic:\n"
+            "https://github.com/homebysix/auto-update-magic")
         env.write_recipe(PREFERENCES)
 
     return env
