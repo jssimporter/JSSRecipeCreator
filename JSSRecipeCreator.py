@@ -85,7 +85,7 @@ class Plist(dict):
     def read_recipe(self, path):
         """Read a recipe into a dict."""
         path = os.path.expanduser(path)
-        if not (os.path.isfile(path)):
+        if not os.path.isfile(path):
             raise Exception("File does not exist: %s" % path)
         info, pformat, error = \
             NSPropertyListSerialization.propertyListWithData_options_format_error_(
@@ -165,13 +165,13 @@ class JSSRecipe(Recipe):
                                                'self_service_icon': '%ICON%',
                                                'self_service_description':
                                                '%DESCRIPTION%',
-                                               'groups': [] }}]
+                                               'groups': []}}]
 
     def add_scoping_group(self, group):
         """Add a group to the scope."""
         recipe_groups = [processor['Arguments']['groups'] for processor in
-                          self['Process'] if processor['Processor'] ==
-                          'JSSImporter'][0]
+                         self['Process'] if processor['Processor'] ==
+                         'JSSImporter'][0]
 
         if group not in recipe_groups:
             recipe_groups.append(group)
@@ -220,7 +220,7 @@ class Menu(object):
                     result = submenu.ask()
                     break
                 except ChoiceError:
-                    print("\n**Invalid entry! Try again.**")
+                    print "\n**Invalid entry! Try again.**"
                     continue
             self.results.update(result)
 
@@ -271,8 +271,8 @@ class Submenu(object):
         if auto and self.default:
             result = self.default
         else:
-            print("\nPlease choose a %s" % self.heading)
-            print("Hit enter to accept default choice, or enter a number.\n")
+            print "\nPlease choose a %s" % self.heading
+            print "Hit enter to accept default choice, or enter a number.\n"
 
             # We're not afraid of zero-indexed lists!
             indexes = xrange(len(self.options))
@@ -281,11 +281,11 @@ class Submenu(object):
                 choice_string = "%s: %s" % option
                 if self.default == option[1]:
                     choice_string += " (DEFAULT)"
-                print(choice_string)
+                print choice_string
 
-            print("\nCreate a new %s by entering name/path." % self.heading)
+            print "\nCreate a new %s by entering name/path." % self.heading
             choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
-                            self.default)
+                               self.default)
 
             if choice.isdigit() and in_range(int(choice), len(option_list)):
                 result = self.options[int(choice)]
@@ -327,12 +327,12 @@ class ScopeSubmenu(Submenu):
     def ask(self, auto=False):
         if not auto:
             group_list = zip(xrange(len(self.jss_groups)), self.jss_groups)
-            print("Scope Selection Menu")
+            print "Scope Selection Menu"
             while True:
-                print("\nGroups available on the JSS:")
+                print "\nGroups available on the JSS:"
                 for option in group_list:
-                    print("%s: %s" % option)
-                print("\nScope defined so far:")
+                    print "%s: %s" % option
+                print "\nScope defined so far:"
                 pprint.pprint(self.results)
                 choice = raw_input("\nTo add a new group, enter a new name. "
                                    "You  may use substition variables.\nTo "
@@ -365,8 +365,7 @@ class ScopeSubmenu(Submenu):
                     continue
                 elif exists is None:
                     smart_choice = raw_input(
-                        "Should this group be a smart group? "
-                                            "(Y|N) ")
+                        "Should this group be a smart group? (Y|N) ")
                     if smart_choice.upper() == 'Y':
                         smart = True
                     else:
@@ -382,29 +381,28 @@ class ScopeSubmenu(Submenu):
                         choice_string = "%s: %s" % option
                         if self.env['Default_Group_Template'] == option[1]:
                             choice_string += " (DEFAULT)"
-                        print(choice_string)
+                        print choice_string
 
-                    print("\nChoose a template by selecting an ID, or entering"
-                          "a filename.")
+                    print ("\nChoose a template by selecting an ID, or "
+                           "entering a filename.")
                     template_choice = raw_input(
                         "Choose and perish: (DEFAULT '%s\') " %
                         self.env['Default_Group_Template'])
 
                     if template_choice.isdigit() and in_range(
-                        int(template_choice), len(template_list)):
-                        #
+                            int(template_choice), len(template_list)):
                         template = template_list[int(template_choice)][1]
                     elif template_choice == '':
                         template = self.env['Default_Group_Template']
                     elif template_choice.isdigit() and not in_range(
-                        int(template_choice), len(template_list)):
+                            int(template_choice), len(template_list)):
                         raise ChoiceError("Invalid Choice")
                     else:
                         template = template_choice
 
                     template = '%RECIPE_DIR%/' + template
                     self.results.append({'name': name, 'smart': smart,
-                                        'template_path': template})
+                                         'template_path': template})
                 else:
                     self.results.append({'name': name, 'smart': smart})
 
@@ -457,8 +455,7 @@ def build_menu(j, parent_recipe, recipe, args, env):
 
     # NAME
     parent_recipe_name = parent_recipe['Input'].get('NAME', '')
-    menu.add_submenu(Submenu('NAME', parent_recipe_name,
-                     parent_recipe_name))
+    menu.add_submenu(Submenu('NAME', parent_recipe_name, parent_recipe_name))
 
     # Policy Template
     policy_template_options = [template for template in os.listdir(os.curdir)
@@ -608,7 +605,7 @@ def main():
         menu.run_auto()
     else:
         menu.run()
-    print('')
+    print
     pprint.pprint(menu.results)
 
     # Merge the answers with the JSSRecipe.
@@ -616,10 +613,10 @@ def main():
     recipe.write_recipe(menu.results['Recipe Filename'])
 
     # Final output.
-    print('')
+    print
     pprint.pprint(recipe)
-    print('')
-    print("Checking plist syntax...")
+    print
+    print "Checking plist syntax..."
     subprocess.check_call(['plutil', '-lint', menu.results['Recipe Filename']])
 
 
