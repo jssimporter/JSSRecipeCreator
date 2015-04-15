@@ -1,7 +1,13 @@
-### 0.1.0 (January 14, 2015) Michaelangelo is a Party Dude
+# Change Log
+All notable changes to this project will be documented in this file.
+This project adheres to [Semantic Versioning](http://semver.org/).
 
-CHANGES:
+## [Unreleased][unreleased]
+### CHANGED
+- Reformatted CHANGELOG...
 
+## [0.1.0] - 2015-01-14 Michaelangelo is a Party Dude
+### CHANGED
 - Apparently I named the script file JSSRecipeGenerator.py, despite *every* other instance. Everything has been normalized to JSSRecipeCreator. Sorry for the confusion!
 - Added recipe comments to help spread the word.
 - Massively refactored for better design.
@@ -15,26 +21,23 @@ CHANGES:
 	- Thus, all replacement variables have been removed from the provided template.
 - Included a copy of the standard JSSImporter SmartGroup and Policy templates, as well as updated documentation to indicate the advantage of them being present in the CWD.
 
-FIXES:
-
+### FIXED
 - Category questions would fail if given a blank category name (trying to coerce None to a string type). This has been corrected (#4)
 
-### 0.0.3 (December 19, 2014) Linty
-
-CHANGES:
+## [0.0.3] - 2014-12-19 Linty
+### CHANGED
 
 - Now does a quick "lint" check of XML with ```plutil -lint``` after generation.
 - readline support added so you can use those sweet terminal hotkeys.
 
-### 0.0.2 (December 18, 2014) Stomper
-
-CHANGES:
+## [0.0.2] - 2014-12-18 Stomper
+### CHANGED
 - Now uses AutoPkg configuration file. Hopefully you already have this configured for JSSImporter use!
 - Optional argument -r/--recipe_template allows you to use a different recipe template file.
 
-FIXES:
+### FIXED
 - Now prompts for a NAME if one doesn't exist. It does not, sadly, suggest "ballin' dubstep" as a potential name. 
 
-### 0.0.1 (December 17, 2014) Ballin' Dubstep
+## [0.0.1] - 2014-12-17 Ballin' Dubstep
 
 Initial Release
