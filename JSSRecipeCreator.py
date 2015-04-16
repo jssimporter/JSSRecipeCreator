@@ -485,8 +485,7 @@ class ScopeSubmenu(Submenu):
                     name = choice
 
                 # Try to see if this group already exists, and if so,
-                # whether it is
-                # smart or not.
+                # whether it is smart or not.
                 try:
                     exists = self.j.ComputerGroup(name)
                 except jss.exceptions.JSSGetError:

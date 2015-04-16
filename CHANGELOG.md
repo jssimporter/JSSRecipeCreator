@@ -6,6 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### CHANGED
 - Reformatted CHANGELOG...
 - Style and lint updates for code beauty.
+- Uses more specific exception subclasses.
 
 ### FIXED
 - Solves unhandled exception when an invalid entry is made during auto mode.
