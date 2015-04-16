@@ -138,7 +138,9 @@ class Plist(dict):
                 None
             ))
         # pylint: enable=unused-variable
-        if error:
+        if info is None:
+            if error is None:
+                error = "Invalid plist file."
             raise PlistParseError("Can't read %s: %s" % (path, error))
 
         self._xml = info
@@ -150,7 +152,7 @@ class Plist(dict):
             path: String path to desired plist file.
 
         Raises:
-            PlistDataError: There was an error in the data (not working).
+            PlistDataError: There was an error in the data.
             PlistWriteError: Plist could not be written.
         """
         plist_data, error = NSPropertyListSerialization.dataWithPropertyList_format_options_error_(
@@ -158,18 +160,13 @@ class Plist(dict):
             NSPropertyListXMLFormat_v1_0,
             0,
             None)
-        # Even with an intentionally borked Plist, I can't make this
-        # error correctly. Will fail with AttributeError instead.
-        # Instead of returning an error, it returns (None, None)
-        # TODO: Figure out how to correctly catch data errors.
-        if error:
+        if plist_data is None:
+            if error is None:
+                error = "Failed to serialize data to plist."
             raise PlistDataError(error)
         else:
-            # If no plist_data, we can assume that there was an error.
-            if plist_data and plist_data.writeToFile_atomically_(
+            if not plist_data.writeToFile_atomically_(
                     os.path.expanduser(path), True):
-                return
-            else:
                 raise PlistWriteError("Failed writing data to %s" % path)
 
     def new_plist(self):
