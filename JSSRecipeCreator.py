@@ -34,6 +34,7 @@ optional arguments:
                         detected values. Prompts for those which don't.
 """
 
+
 import argparse
 import os.path
 import pprint
@@ -71,8 +72,8 @@ class ChoiceError(Error):
 class Plist(dict):
     """Abbreviated plist representation (as a dict) with methods for
     reading, writing, and creating blank plists.
-
     """
+
     def __init__(self, filename=None):
         """Parses an XML file into a Recipe object."""
         self._xml = {}
@@ -148,8 +149,8 @@ class Recipe(Plist):
     """Represents a recipe plist file, with methods for reading existing
     recipes and saving them again. Overrides dict, so most idioms and
     patterns apply.
-
     """
+
     def new_plist(self):
         """Generate a barebones recipe plist."""
         # Not implemented
@@ -167,8 +168,8 @@ class JSSRecipe(Recipe):
     arguments to maximize override-ability. Therefore, the JSSImporter
     arguments should be probably be left with replacement variables as
     their values.
-
     """
+
     def new_plist(self):
         super(JSSRecipe, self).new_plist()
 
@@ -231,6 +232,7 @@ class JSSRecipe(Recipe):
 
 class Menu(object):
     """Presents users with a menu and handles their input."""
+
     def __init__(self):
         self.submenus = []
         self.results = {}
@@ -266,6 +268,7 @@ class Menu(object):
 # pylint: disable=too-few-public-methods
 class Submenu(object):
     """Represents an individual menu 'question'."""
+
     def __init__(self, key, options, default="", heading=""):
         """Create a submenu.
 
@@ -276,7 +279,6 @@ class Submenu(object):
                             values. Will
                             also accept a single value.
         default:            The default choice (to accept, hit enter).
-
         """
         self.key = key
         # If we don't get a heading, just use the key name.
@@ -326,10 +328,11 @@ class Submenu(object):
 # pylint: enable=too-few-public-methods
 
 
+# Subclass of Submenu only to get through type-checking for
+# Menu.add().
 class ScopeSubmenu(Submenu):
     """Specialized submenu for scope questions."""
-    # Subclass of Submenu only to get through type-checking for
-    # Menu.add().
+
     def __init__(self, recipe_template, j, env):
         """Prepare our menu with needed data."""
         self.recipe_template = recipe_template
@@ -565,7 +568,6 @@ def build_argparser(env):
 def to_bool(val):
     """Convert string boolean values from JSS ComputerGroups' is_smart
     property to true bools.
-
     """
     if val == "false":
         return False
