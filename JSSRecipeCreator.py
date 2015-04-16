@@ -171,6 +171,7 @@ class Plist(dict):
 
     def new_plist(self):
         """Generate a barebones recipe plist."""
+        # Not implemented at this time.
         pass
 
 
@@ -182,7 +183,6 @@ class Recipe(Plist):
 
     def new_plist(self):
         """Generate a barebones recipe plist."""
-        # Not implemented
         self._xml["Description"] = ""
         self._xml["Identifier"] = ""
         self._xml["MinimumVersion"] = ""
@@ -200,8 +200,12 @@ class JSSRecipe(Recipe):
     """
 
     def new_plist(self):
-        super(JSSRecipe, self).new_plist()
+        """Construct a new, empty JSS recipe.
 
+        All JSSImporter arguments are exposed as Input Variables
+        to ensure access through overrides.
+        """
+        super(JSSRecipe, self).new_plist()
         self._xml["Input"].update({"NAME": "",
                                    "CATEGORY": "",
                                    "POLICY_CATEGORY": "",
@@ -221,7 +225,14 @@ class JSSRecipe(Recipe):
                                                "groups": []}}]
 
     def add_scoping_group(self, group):
-        """Add a group to the scope."""
+        """Add a group to the scope if it's not already included.
+
+        Args:
+            group: Group dict with items:
+                name: String group name
+                smart:  Bool True for smart groups, False for static.
+                template_path: String relative path to template file.
+        """
         recipe_groups = [processor["Arguments"]["groups"] for processor in
                          self["Process"] if processor["Processor"] ==
                          "JSSImporter"][0]
@@ -230,11 +241,12 @@ class JSSRecipe(Recipe):
             recipe_groups.append(group)
 
     def update(self, update_dict, comment=None):
-        """Updates a JSSRecipe's values with those supplied by argument.
+        """Updates a JSSRecipe's values from supplied dict.
 
-        update_dict         Dictionary of recipe values. Keys should
-                            match the desired INPUT variable name.
-
+        Args:
+            update_dict: Dictionary of recipe values. Keys should match the
+                desired INPUT variable name.
+            comment: String to include as a top-level comment.
         """
         # This is tightly coupled with the INPUT variable key names I
         # have chosen. This would be a good target for the next
@@ -260,14 +272,25 @@ class JSSRecipe(Recipe):
 
 
 class Menu(object):
-    """Presents users with a menu and handles their input."""
+    """Presents users with a menu and handles their input.
+
+    Submenus are managed in a list. run() and run_auto() will ask
+    questions in order.
+
+    Attributes:
+        submenus: List of submenus Menu controls.
+        results: Set of results.
+    """
 
     def __init__(self):
         self.submenus = []
         self.results = {}
 
     def run(self):
-        """Run, in order, through our submenus, asking questions."""
+        """Run, in order, through our submenus, asking questions.
+
+        Updates results after handling questions.
+        """
         for submenu in self.submenus:
             while True:
                 try:
@@ -279,8 +302,10 @@ class Menu(object):
             self.results.update(result)
 
     def run_auto(self):
-        """Run, in order, through our submenus, asking only questions
-        which do not have default values.
+        """Ask questions which have no default.
+
+        Runs in order through submenus, asking questions where no
+        default value has been provided, and then sets the results.
         """
         for submenu in self.submenus:
             while True:
@@ -293,11 +318,18 @@ class Menu(object):
             self.results.update(result)
 
     def add_submenu(self, submenu):
-        """Add a submenu to our questions list."""
+        """Add a Submenu to our questions list.
+
+        Args:
+            submenu: Submenu object of questions.
+
+        Raises:
+            TypeError: If non-Submenu added.
+        """
         if isinstance(submenu, Submenu):
             self.submenus.append(submenu)
         else:
-            raise Exception("Only Submenu may be added!")
+            raise TypeError("Only Submenu may be added!")
 
 
 # pylint: disable=too-few-public-methods
@@ -307,13 +339,13 @@ class Submenu(object):
     def __init__(self, key, options, default="", heading=""):
         """Create a submenu.
 
-        key:                Name of INPUT variable key.
-        heading:            The name of the things (e.g. Category,
-                            Icon).
-        options:            List of potential values string "name"
-                            values. Will
-                            also accept a single value.
-        default:            The default choice (to accept, hit enter).
+        Args:
+            key: String Name of INPUT variable key.
+            heading: String name to use as a heading, (e.g. Category,
+                Icon).
+            options: List of potential string values to populate
+                submenu choices. Will also accept a single value.
+            default: String default choice. User hits enter to accept.
         """
         self.key = key
         # If we don't get a heading, just use the key name.
@@ -328,7 +360,18 @@ class Submenu(object):
         self.default = default
 
     def ask(self, auto=False):
-        """Ask user a question based on configured values."""
+        """Ask user a question based on configured values.
+
+        Args:
+            auto: Bool. If True, and a default value has been provided,
+                use that default value.
+
+        Returns:
+            Dict with key = self.key and val = the user's choice.
+
+        Raises:
+            ChoiceError: User has made an invalid choice.
+        """
         if auto and self.default:
             result = self.default
         else:
@@ -369,7 +412,14 @@ class ScopeSubmenu(Submenu):
     """Specialized submenu for scope questions."""
 
     def __init__(self, recipe_template, j, env):
-        """Prepare our menu with needed data."""
+        """Prepare menu with data from template and JSS.
+
+        Args:
+            recipe_template: A Recipe object (NSCFDictionary).
+            j: A jss.JSS object to poll for existing groups.
+        env: Dict with optional item "Default_Group_Template". Meant to
+            be passed the JSSRecipeCreator environment dict.
+        """
         self.recipe_template = recipe_template
         self.j = j
         self.env = env
@@ -389,6 +439,27 @@ class ScopeSubmenu(Submenu):
         self.results.extend(templated_groups)
 
     def ask(self, auto=False):
+        """Ask user about scoping based on configured values.
+
+        Offers users a list of groups found on the JSS, as well as the
+        ability to create new groups. This menu allows use of
+        substitution variables as well.
+
+        Args:
+            auto: Bool. If True, and a default value has been provided,
+                use that default value.
+
+        Returns:
+            Dict with key "groups", with value a list of group dicts.
+                group dicts include keys:
+                    name: String name of group
+                    smart: Bool indicating Smart or Static group.
+                    template_path (optional): Relative path to group
+                        template file.
+
+        Raises:
+            ChoiceError: User has made an invalid choice.
+        """
         if not auto:
             group_list = zip(xrange(len(self.jss_groups)), self.jss_groups)
             print "Scope Selection Menu"
@@ -399,7 +470,7 @@ class ScopeSubmenu(Submenu):
                 print "\nScope defined so far:"
                 pprint.pprint(self.results)
                 choice = raw_input("\nTo add a new group, enter a new name. "
-                                   "You  may use substition variables.\nTo "
+                                   "You  may use substitution variables.\nTo "
                                    "select an existing group, enter its ID "
                                    "above, or its name.\nTo QUIT this menu, "
                                    "hit 'return'. ")
@@ -477,7 +548,13 @@ class ScopeSubmenu(Submenu):
 
 
 def configure_jss(env):
-    """Configure a JSS object."""
+    """Configure a JSS object based on JSSRecipeCreator's env.
+
+    Args:
+        env: Dictionary of JSSRecipeCreator's env.
+    Returns:
+        Returns a python-jss JSS object.
+    """
     repo_url = env["JSS_URL"]
     auth_user = env["API_USERNAME"]
     auth_pass = env["API_PASSWORD"]
@@ -491,12 +568,28 @@ def configure_jss(env):
 
 
 def build_menu(j, parent_recipe, recipe, args, env):
-    """Construct the menu for prompting users to create a JSS recipe."""
+    """Construct the menu for prompting users to create a JSS recipe.
+
+    Args:
+        j: A python-jss JSS object.
+        parent_recipe: Recipe of the desired parent recipe.
+        recipe: JSSRecipe object to populate, either loaded from a
+            recipe template, or as a new() JSSRecipe..
+        args: Arguments returned from argparser.
+        env: JSSRecipeCreator preferences dict.
+
+    Returns:
+        A Menu with all questions configured and ready to ask().
+
+    Raises:
+        AttributeError: If a non-pkg recipe is provided as the parent,
+            as a pkg is required for policy installs.
+    """
     menu = Menu()
 
     # Filename.
     if not "PKG.RECIPE" in args.ParentRecipe.upper():
-        raise Exception("Recipe must be based on a package recipe!")
+        raise AttributeError("Recipe must be based on a package recipe!")
     default_filename = os.path.basename(
         args.ParentRecipe.replace(".pkg.", ".jss."))
     menu.add_submenu(Submenu("Recipe Filename", default_filename,
@@ -569,7 +662,14 @@ def build_menu(j, parent_recipe, recipe, args, env):
 
 
 def build_argparser(env):
-    """Create our argument parser."""
+    """Create JSSRecipeCreator argument parser.
+
+    Args:
+        env: Dict of JSSRecipeCreator preferences.
+
+    Returns:
+        Configured ArgumentParser.
+    """
     parser = argparse.ArgumentParser(description="Quickly generate JSS "
                                      "recipes.")
     parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
@@ -601,9 +701,7 @@ def build_argparser(env):
 
 
 def to_bool(val):
-    """Convert string boolean values from JSS ComputerGroups' is_smart
-    property to true bools.
-    """
+    """Convert string bool values to python Bool."""
     if val == "false":
         return False
     elif val == "true":
@@ -618,7 +716,15 @@ def in_range(val, size):
 
 
 def get_preferences():
-    """Ensure a preferences file exists, and open it."""
+    """Ensure a preferences file exists, and open it.
+
+    Uses global constant PREFERENCES to ensure that a folder with that
+    path exists, and loads it as a Plist object. If needed, generates
+    the default settings.
+
+    Returns:
+        Plist of preferences.
+    """
     if os.path.exists(PREFERENCES):
         env = Plist(PREFERENCES)
     else:
