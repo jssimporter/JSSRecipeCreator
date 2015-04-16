@@ -1,23 +1,37 @@
-#!/usr/bin/env python
+#!/usr/bin/python
+# Copyright (C) 2014 Shea G Craig
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """JSSRecipeCreator.py
 
 Quickly create JSS recipes from a template.
 
-Copyright (C) 2014 Shea G Craig <shea.craig@da.org>
+usage: JSSRecipeCreator.py [-h] [-r RECIPE_TEMPLATE | -s] [-a] ParentRecipe
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+positional arguments:
+  ParentRecipe          Path to a parent recipe.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+optional arguments:
+  -h, --help            show this help message and exit
+  -r RECIPE_TEMPLATE, --recipe_template RECIPE_TEMPLATE
+                        Use a recipe template. Defaults to a file named
+                        RecipeTemplate.xml in the current directory,
+  -s, --from_scratch    Do not use a recipe template; instead, build a
+                        recipe from scratch.
+  -a, --auto            Uses default choices for all questions that have
+                        detected values. Prompts for those which don't.
 """
 
 import argparse
@@ -314,7 +328,8 @@ class Submenu(object):
 
 class ScopeSubmenu(Submenu):
     """Specialized submenu for scope questions."""
-    # Subclass of Submenu only to get through type-checking for Menu.add().
+    # Subclass of Submenu only to get through type-checking for
+    # Menu.add().
     def __init__(self, recipe_template, j, env):
         """Prepare our menu with needed data."""
         self.recipe_template = recipe_template
