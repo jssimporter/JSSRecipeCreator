@@ -252,10 +252,16 @@ class Menu(object):
     def run_auto(self):
         """Run, in order, through our submenus, asking only questions
         which do not have default values.
-
         """
         for submenu in self.submenus:
-            self.results.update(submenu.ask(auto=True))
+            while True:
+                try:
+                    result = submenu.ask(auto=True)
+                    break
+                except ChoiceError:
+                    print "\n**Invalid entry! Try again.**"
+                    continue
+            self.results.update(result)
 
     def add_submenu(self, submenu):
         """Add a submenu to our questions list."""
