@@ -44,7 +44,7 @@ import subprocess
 # pylint: disable=no-name-in-module
 from Foundation import (NSData,
                         NSPropertyListSerialization,
-                        NSPropertyListMutableContainers,
+                        NSPropertyListMutableContainersAndLeaves,
                         NSPropertyListXMLFormat_v1_0)
 # pylint: enable=no-name-in-module
 
@@ -69,17 +69,34 @@ class ChoiceError(Error):
     pass
 
 
+class PlistParseError(Error):
+    """Error parsing a plist file."""
+    pass
+
+
+class PlistDataError(Error):
+    """Data can not be serialized to plist."""
+    pass
+
+
+class PlistWriteError(Error):
+    """Error writing a plist file."""
+    pass
+
+
 class Plist(dict):
-    """Abbreviated plist representation (as a dict) with methods for
-    reading, writing, and creating blank plists.
-    """
+    """Abbreviated plist representation (as a dict)."""
 
     def __init__(self, filename=None):
-        """Parses an XML file into a Recipe object."""
+        """Init a Plist, optionally from parsing an existing file.
+
+        Args:
+            filename: String path to a plist file.
+        """
         self._xml = {}
 
         if filename:
-            self.read_recipe(filename)
+            self.read_file(filename)
         else:
             self.new_plist()
 
@@ -104,41 +121,56 @@ class Plist(dict):
     def __str__(self):
         return dict(self._xml).__str__()
 
-    def read_recipe(self, path):
-        """Read a recipe into a dict."""
-        path = os.path.expanduser(path)
-        if not os.path.isfile(path):
-            raise Exception("File does not exist: %s" % path)
+    def read_file(self, path):
+        """Replace internal XML dict with data from plist at path.
+        Args:
+            path: String path to a plist file.
+
+        Raises:
+            PlistParseError: Error in reading plist file.
+        """
         # pylint: disable=unused-variable
         info, pformat, error = (
             NSPropertyListSerialization.propertyListWithData_options_format_error_(
-                NSData.dataWithContentsOfFile_(path),
-                NSPropertyListMutableContainers,
+                NSData.dataWithContentsOfFile_(os.path.expanduser(path)),
+                NSPropertyListMutableContainersAndLeaves,
                 None,
                 None
             ))
         # pylint: enable=unused-variable
         if error:
-            raise Exception("Can't read %s: %s" % (path, error))
+            raise PlistParseError("Can't read %s: %s" % (path, error))
 
         self._xml = info
 
-    def write_recipe(self, path):
-        """Write a recipe to path."""
-        path = os.path.expanduser(path)
+    def write_plist(self, path):
+        """Write plist to path.
+
+        Args:
+            path: String path to desired plist file.
+
+        Raises:
+            PlistDataError: There was an error in the data (not working).
+            PlistWriteError: Plist could not be written.
+        """
         plist_data, error = NSPropertyListSerialization.dataWithPropertyList_format_options_error_(
             self._xml,
             NSPropertyListXMLFormat_v1_0,
             0,
-            None
-        )
+            None)
+        # Even with an intentionally borked Plist, I can't make this
+        # error correctly. Will fail with AttributeError instead.
+        # Instead of returning an error, it returns (None, None)
+        # TODO: Figure out how to correctly catch data errors.
         if error:
-            raise Exception(error)
+            raise PlistDataError(error)
         else:
-            if plist_data.writeToFile_atomically_(path, True):
+            # If no plist_data, we can assume that there was an error.
+            if plist_data and plist_data.writeToFile_atomically_(
+                    os.path.expanduser(path), True):
                 return
             else:
-                raise Exception("Failed writing data to %s" % path)
+                raise PlistWriteError("Failed writing data to %s" % path)
 
     def new_plist(self):
         """Generate a barebones recipe plist."""
@@ -606,7 +638,7 @@ def get_preferences():
             "For tips on integrating JSSImporter into your Casper "
             "environment, check out Auto Update Magic:\n"
             "https://github.com/homebysix/auto-update-magic")
-        env.write_recipe(PREFERENCES)
+        env.write_plist(PREFERENCES)
 
     return env
 
@@ -647,7 +679,7 @@ def main():
 
     # Merge the answers with the JSSRecipe.
     recipe.update(menu.results, env["Recipe_Comment"])
-    recipe.write_recipe(menu.results["Recipe Filename"])
+    recipe.write_plist(menu.results["Recipe Filename"])
 
     # Final output.
     print
