@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased][unreleased]
 ### CHANGED
 - Reformatted CHANGELOG...
+- Style and lint updates for code beauty.
+
+### FIXED
+- Solves unhandled exception when an invalid entry is made during auto mode.
 
 ## [0.1.0] - 2015-01-14 Michaelangelo is a Party Dude
 ### CHANGED
