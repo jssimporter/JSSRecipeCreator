@@ -549,7 +549,7 @@ class ScopeSubmenu(Submenu):
                 except jss.exceptions.JSSGetError:
                     exists = None
                 finally:
-                    if exists:
+                    if exists is not None:
                         smart = to_bool(exists.findtext("is_smart"))
                     else:
                         smart = None
