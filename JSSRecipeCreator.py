@@ -447,6 +447,9 @@ class Submenu(object):
 # Menu.add().
 class ScopeSubmenu(Submenu):
     """Specialized submenu for scope questions."""
+    # Group type typedef.
+    STATIC_GROUP = False
+    SMART_GROUP = True
 
     def __init__(self, recipe_template, j, env):
         """Prepare menu with data from template and JSS.
@@ -497,7 +500,10 @@ class ScopeSubmenu(Submenu):
             ChoiceError: User has made an invalid choice.
         """
         if not auto:
+            # TODO: enumerate this beast.
             group_list = zip(xrange(len(self.jss_groups)), self.jss_groups)
+            template_list = [template for template in os.listdir(os.curdir) if
+                             os.path.splitext(template)[1].upper() == ".XML"]
             print "Scope Selection Menu"
             while True:
                 print "\nGroups available on the JSS:"
@@ -522,64 +528,85 @@ class ScopeSubmenu(Submenu):
 
                 # Try to see if this group already exists, and if so,
                 # whether it is smart or not.
-                try:
-                    exists = self.j.ComputerGroup(name)
-                except jss.exceptions.JSSGetError:
-                    exists = None
-                finally:
-                    if exists is not None:
-                        smart = to_bool(exists.findtext("is_smart"))
-                    else:
-                        smart = None
+                group_type = self._check_group(name)
 
-                if exists is not None and not smart:
-                    # Existing static group: We're done
+                if group_type is self.STATIC_GROUP:
                     self.results.append({"name": name, "smart": False})
                     continue
-                elif exists is None:
+                elif group_type is None:
                     smart_choice = raw_input(
                         "Should this group be a smart group? (Y|N) ")
                     if smart_choice.upper() == "Y":
-                        smart = True
+                        group_type = self.SMART_GROUP
                     else:
-                        smart = False
+                        group_type = self.STATIC_GROUP
 
-                if smart:
-                    local_xml = [template for template in os.listdir(os.curdir)
-                                 if "XML" in
-                                 os.path.splitext(template)[1].upper()]
-                    indexes = xrange(len(local_xml))
-                    template_list = zip(indexes, local_xml)
-                    for option in template_list:
-                        choice_string = "%s: %s" % option
-                        if self.env["Default_Group_Template"] == option[1]:
-                            choice_string += " (DEFAULT)"
-                        print choice_string
+                result = {"name": name, "smart": group_type}
 
-                    print ("\nChoose a template by selecting an ID, or "
-                           "entering a filename.")
-                    template_choice = raw_input(
-                        "Choose and perish: (DEFAULT '%s\') " %
-                        self.env["Default_Group_Template"])
+                if group_type is self.SMART_GROUP:
+                    result["template_path"] = (
+                        self._get_smart_group_template(template_list))
 
-                    if template_choice.isdigit() and in_range(
-                            int(template_choice), len(template_list)):
-                        template = template_list[int(template_choice)][1]
-                    elif template_choice == "":
-                        template = self.env["Default_Group_Template"]
-                    elif template_choice.isdigit() and not in_range(
-                            int(template_choice), len(template_list)):
-                        raise ChoiceError("Invalid Choice")
-                    else:
-                        template = template_choice
-
-                    template = "%RECIPE_DIR%/" + template
-                    self.results.append({"name": name, "smart": smart,
-                                         "template_path": template})
-                else:
-                    self.results.append({"name": name, "smart": smart})
+                self.results.append(result)
 
         return {"groups": self.results}
+
+    def _get_smart_group_template(self, template_list):
+        """Ask user which smart group template to use."""
+        default = self.env.get("Default_Group_Template", "")
+        for option in enumerate(template_list):
+            choice_string = "%s: %s" % option
+            if option[1] == default:
+                choice_string += " (DEFAULT)"
+            print choice_string
+
+        print ("\nChoose a template by selecting an ID, or "
+                "entering a filename.")
+        template_choice = raw_input(
+            "Choose and perish: (DEFAULT '%s') " % default)
+
+        if template_choice.isdigit() and in_range(
+                int(template_choice), len(template_list)):
+            template = template_list[int(template_choice)]
+        elif template_choice == "":
+            if default:
+                template = default
+            else:
+                raise ChoiceError("Invalid choice. A template is required.")
+        elif template_choice.isdigit() and not in_range(
+                int(template_choice), len(template_list)):
+            raise ChoiceError("Invalid choice.")
+        else:
+            template = template_choice
+
+        # Prepend %RECIPE_DIR% so recipes always know where to find
+        # template.
+        return "%RECIPE_DIR%/" + template
+
+    def _check_group(self, name):
+        """Check for whether a group exists, and if so, if it is smart.
+
+        Args:
+            name: The name of the group to check.
+
+        Returns:
+            JSSRecipe.STATIC_GROUP if group is static,
+            JSSRecipe.SMART_GROUP if group is smart, or None if group
+            doesn't exist.
+        """
+        try:
+            group = self.j.ComputerGroup(name)
+        except jss.exceptions.JSSGetError:
+            group = None
+
+        if group is None:
+            result = None
+        elif group.findtext("is_smart") == "true":
+            result = self.SMART_GROUP
+        else:
+            result = self.STATIC_GROUP
+
+        return result
 
 
 def configure_jss(env):
