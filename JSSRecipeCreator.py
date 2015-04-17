@@ -178,7 +178,7 @@ class Plist(dict):
 class Recipe(Plist):
     """Represents a recipe plist file, with methods for reading existing
     recipes and saving them again. Overrides dict, so most idioms and
-    patterns apply.
+    patterns apply. Extends Plist.
     """
 
     def new_plist(self):
@@ -191,13 +191,30 @@ class Recipe(Plist):
 
 
 class JSSRecipe(Recipe):
-    """An Autopkg JSS recipe.
+    """An Autopkg JSS recipe. Extends Recipe.
 
     Recipes are constructed with redundant INPUT variables / JSSImporter
     arguments to maximize override-ability. Therefore, the JSSImporter
     arguments should be probably be left with replacement variables as
     their values.
     """
+    def __init__(self, filename=None):
+        """Init a JSSRecipe, optionally from parsing an existing file.
+
+        Validates that recipe has a JSSImporter processor with required
+        values.
+
+        Args:
+            filename: String path to a plist file.
+        """
+        super(JSSRecipe, self).__init__(filename)
+        try:
+            self.jss_importer = [processor for processor in
+                                 self["Process"] if
+                                 processor["Processor"] == "JSSImporter"].pop()
+        except IndexError:
+            raise PlistDataError("Recipe template is missing a JSSImporter")
+
 
     def new_plist(self):
         """Construct a new, empty JSS recipe.
@@ -450,11 +467,10 @@ class ScopeSubmenu(Submenu):
         # Entries should be a dict of name, smart, and
         # template_path values.
         self.results = []
-        templated_groups = [templated_group for processor in
-                            recipe_template["Process"] for templated_group in
-                            processor["Arguments"]["groups"] if
-                            processor["Processor"] == "JSSImporter"]
-        self.results.extend(templated_groups)
+        if "groups" in recipe_template.jss_importer["Arguments"].keys():
+            templated_groups = recipe_template.jss_importer["Arguments"].get(
+                "groups")
+            self.results.extend(templated_groups)
 
     def ask(self, auto=False):
         """Ask user about scoping based on configured values.
