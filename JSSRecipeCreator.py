@@ -710,6 +710,8 @@ def build_menu(j, parent_recipe, recipe, args, env):
     icon_default = parent_recipe["Input"].get("NAME", "Icon") + ".png"
     icon_options = [icon for icon in os.listdir(os.curdir) if
                     "PNG" in os.path.splitext(icon)[1].upper()]
+    if icon_default not in icon_options:
+        icon_options.append(icon_default)
     menu.add_submenu(Submenu("ICON", icon_options, True, default=icon_default,
                              heading="Self Service Icon"))
 
