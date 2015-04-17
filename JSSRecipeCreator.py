@@ -226,22 +226,22 @@ class JSSRecipe(Recipe):
         """
         super(JSSRecipe, self).new_plist()
         self["Input"].update({"NAME": "",
-                                   "CATEGORY": "",
-                                   "POLICY_CATEGORY": "",
-                                   "POLICY_TEMPLATE": "",
-                                   "ICON": "",
-                                   "DESCRIPTION": ""})
+                              "CATEGORY": "",
+                              "POLICY_CATEGORY": "",
+                              "POLICY_TEMPLATE": "",
+                              "ICON": "",
+                              "DESCRIPTION": ""})
         self["Process"] = [{"Processor": "JSSImporter",
-                                 "Arguments": {"prod_name": "%NAME%",
-                                               "category": "%CATEGORY%",
-                                               "policy_category":
-                                               "%POLICY_CATEGORY%",
-                                               "policy_template":
-                                               "%POLICY_TEMPLATE%",
-                                               "self_service_icon": "%ICON%",
-                                               "self_service_description":
-                                               "%DESCRIPTION%",
-                                               "groups": []}}]
+                            "Arguments": {"prod_name": "%NAME%",
+                                          "category": "%CATEGORY%",
+                                          "policy_category":
+                                          "%POLICY_CATEGORY%",
+                                          "policy_template":
+                                          "%POLICY_TEMPLATE%",
+                                          "self_service_icon": "%ICON%",
+                                          "self_service_description":
+                                              "%DESCRIPTION%",
+                                          "groups": []}}]
 
     def add_scoping_group(self, group):
         """Add a group to the scope if it's not already included.
@@ -500,15 +500,13 @@ class ScopeSubmenu(Submenu):
             ChoiceError: User has made an invalid choice.
         """
         if not auto:
-            # TODO: enumerate this beast.
-            group_list = zip(xrange(len(self.jss_groups)), self.jss_groups)
+            group_list = self._get_group_list()
             template_list = [template for template in os.listdir(os.curdir) if
                              os.path.splitext(template)[1].upper() == ".XML"]
             print "Scope Selection Menu"
             while True:
                 print "\nGroups available on the JSS:"
-                for option in group_list:
-                    print "%s: %s" % option
+                print group_list
                 print "\nScope defined so far:"
                 pprint.pprint(self.results)
                 choice = raw_input("\nTo add a new group, enter a new name. "
@@ -516,32 +514,33 @@ class ScopeSubmenu(Submenu):
                                    "select an existing group, enter its ID "
                                    "above, or its name.\nTo QUIT this menu, "
                                    "hit 'return'. ")
-                if choice.isdigit() and in_range(int(choice), len(group_list)):
-                    name = group_list[int(choice)][1]
+
+                # Handle primary group menu choice.
+                if choice.isdigit() and in_range(int(choice),
+                                                 len(self.jss_groups)):
+                    name = self.jss_groups[int(choice)]
                 elif choice == "":
                     break
                 elif choice.isdigit() and not in_range(int(choice),
-                                                       len(group_list)):
+                                                       len(self.jss_groups)):
                     raise ChoiceError("Invalid Choice")
                 else:
                     name = choice
+
+                result = {"name": name}
 
                 # Try to see if this group already exists, and if so,
                 # whether it is smart or not.
                 group_type = self._check_group(name)
 
-                if group_type is self.STATIC_GROUP:
-                    self.results.append({"name": name, "smart": False})
-                    continue
-                elif group_type is None:
+                if group_type is None:
                     smart_choice = raw_input(
                         "Should this group be a smart group? (Y|N) ")
                     if smart_choice.upper() == "Y":
                         group_type = self.SMART_GROUP
                     else:
                         group_type = self.STATIC_GROUP
-
-                result = {"name": name, "smart": group_type}
+                result["smart"] = group_type
 
                 if group_type is self.SMART_GROUP:
                     result["template_path"] = (
@@ -550,6 +549,12 @@ class ScopeSubmenu(Submenu):
                 self.results.append(result)
 
         return {"groups": self.results}
+
+    def _get_group_list(self):
+        """Return a menu option string."""
+        # TODO: Add in columns.
+        group_list = enumerate(self.jss_groups)
+        return "\n".join(["%s: %s" % group for group in group_list])
 
     def _get_smart_group_template(self, template_list):
         """Ask user which smart group template to use."""
@@ -560,8 +565,8 @@ class ScopeSubmenu(Submenu):
                 choice_string += " (DEFAULT)"
             print choice_string
 
-        print ("\nChoose a template by selecting an ID, or "
-                "entering a filename.")
+        print ("\nChoose a template by selecting an ID, or entering a "
+               "filename.")
         template_choice = raw_input(
             "Choose and perish: (DEFAULT '%s') " % default)
 
