@@ -93,33 +93,11 @@ class Plist(dict):
         Args:
             filename: String path to a plist file.
         """
-        self._xml = {}
-
         if filename:
-            self.read_file(filename)
+            dict.__init__(self, self.read_file(filename))
         else:
+            dict.__init__(self)
             self.new_plist()
-
-    def __getitem__(self, key):
-        return self._xml[key]
-
-    def __setitem__(self, key, value):
-        self._xml[key] = value
-
-    def __delitem__(self, key):
-        del self._xml[key]
-
-    def __iter__(self):
-        return iter(self._xml)
-
-    def __len__(self):
-        return len(self._xml)
-
-    def __repr__(self):
-        return dict(self._xml).__repr__()
-
-    def __str__(self):
-        return dict(self._xml).__str__()
 
     def read_file(self, path):
         """Replace internal XML dict with data from plist at path.
@@ -143,7 +121,7 @@ class Plist(dict):
                 error = "Invalid plist file."
             raise PlistParseError("Can't read %s: %s" % (path, error))
 
-        self._xml = info
+        return info
 
     def write_plist(self, path):
         """Write plist to path.
@@ -156,7 +134,7 @@ class Plist(dict):
             PlistWriteError: Plist could not be written.
         """
         plist_data, error = NSPropertyListSerialization.dataWithPropertyList_format_options_error_(
-            self._xml,
+            self,
             NSPropertyListXMLFormat_v1_0,
             0,
             None)
@@ -191,17 +169,17 @@ class Recipe(Plist):
         # Ensure recipe has required keys.
         required_keys = ["Identifier", "Input", "Process"]
         for key in required_keys:
-            if key not in self._xml:
+            if key not in self:
                 raise PlistDataError("Recipe is lacking required key: %s" %
                                      key)
 
     def new_plist(self):
         """Generate a barebones recipe plist."""
-        self._xml["Description"] = ""
-        self._xml["Identifier"] = ""
-        self._xml["MinimumVersion"] = ""
-        self._xml["ParentRecipe"] = ""
-        self._xml["Input"] = {}
+        self["Description"] = ""
+        self["Identifier"] = ""
+        self["MinimumVersion"] = ""
+        self["ParentRecipe"] = ""
+        self["Input"] = {}
 
     def add_input_var(self, key, value=""):
         """Add or set a recipe input variable.
@@ -212,7 +190,7 @@ class Recipe(Plist):
             key: String name of input variable.
             value: Valid Plist format value for key.
         """
-        self._xml["Input"][key] = value
+        self["Input"][key] = value
 
 class JSSRecipe(Recipe):
     """An Autopkg JSS recipe. Extends Recipe.
@@ -247,13 +225,13 @@ class JSSRecipe(Recipe):
         to ensure access through overrides.
         """
         super(JSSRecipe, self).new_plist()
-        self._xml["Input"].update({"NAME": "",
+        self["Input"].update({"NAME": "",
                                    "CATEGORY": "",
                                    "POLICY_CATEGORY": "",
                                    "POLICY_TEMPLATE": "",
                                    "ICON": "",
                                    "DESCRIPTION": ""})
-        self._xml["Process"] = [{"Processor": "JSSImporter",
+        self["Process"] = [{"Processor": "JSSImporter",
                                  "Arguments": {"prod_name": "%NAME%",
                                                "category": "%CATEGORY%",
                                                "policy_category":
