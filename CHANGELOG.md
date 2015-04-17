@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Reformatted CHANGELOG...
 - Style and lint updates for code beauty.
 - Uses more specific exception subclasses.
+- Added optionalality to menus. For example, you can now specify that you don't want a policy template by selecting the ```0: <None> option.
 
 ### FIXED
 - Solves unhandled exception when an invalid entry is made during auto mode.

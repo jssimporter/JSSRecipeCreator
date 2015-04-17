@@ -259,11 +259,19 @@ class JSSRecipe(Recipe):
             self["Comment"] = comment
         # Input section
         self["Input"]["NAME"] = update_dict["NAME"]
-        self["Input"]["POLICY_TEMPLATE"] = ("%%RECIPE_DIR%%/%s" %
-                                            update_dict["POLICY_TEMPLATE"])
+        if update_dict["POLICY_TEMPLATE"]:
+            self["Input"]["POLICY_TEMPLATE"] = ("%%RECIPE_DIR%%/%s" %
+                                                update_dict["POLICY_TEMPLATE"])
+        # If a blank policy template has been set, don't prepend
+        # anything; we actually want nothing!
+        else:
+            self["Input"]["POLICY_TEMPLATE"] = ""
         self["Input"]["POLICY_CATEGORY"] = update_dict["POLICY_CATEGORY"]
         self["Input"]["CATEGORY"] = update_dict["CATEGORY"]
-        self["Input"]["ICON"] = "%%RECIPE_DIR%%/%s" % update_dict["ICON"]
+        if update_dict["ICON"]:
+            self["Input"]["ICON"] = "%%RECIPE_DIR%%/%s" % update_dict["ICON"]
+        else:
+            self["Input"]["ICON"] = ""
         self["Input"]["DESCRIPTION"] = update_dict["DESCRIPTION"]
 
         # Handle groups
@@ -335,28 +343,36 @@ class Menu(object):
 # pylint: disable=too-few-public-methods
 class Submenu(object):
     """Represents an individual menu 'question'."""
+    OPTIONAL_ARG = "<None>"
 
-    def __init__(self, key, options, default="", heading=""):
+    def __init__(self, key, options, optional, default="", heading=""):
         """Create a submenu.
 
         Args:
             key: String Name of INPUT variable key.
-            heading: String name to use as a heading, (e.g. Category,
-                Icon).
             options: List of potential string values to populate
                 submenu choices. Will also accept a single value.
+            optional: Bool indicating whether this is a required arg
+                for the recipe. If optional is True, will add a <None>
+                value to the menu options.
             default: String default choice. User hits enter to accept.
+                Defaults to having no default.
+            heading: String name to use as a heading, (e.g. Category,
+                Icon). Defaults to using the key name.
         """
         self.key = key
+        self.options = []
         # If we don't get a heading, just use the key name.
         if not heading:
             self.heading = key
         else:
             self.heading = heading
         if not isinstance(options, list):
-            self.options = [options]
+            self.options.append(options)
         else:
-            self.options = options
+            self.options.extend(options)
+        if optional:
+            self.options.insert(0, self.OPTIONAL_ARG)
         self.default = default
 
     def ask(self, auto=False):
@@ -393,6 +409,8 @@ class Submenu(object):
 
             if choice.isdigit() and in_range(int(choice), len(option_list)):
                 result = self.options[int(choice)]
+                if result == self.OPTIONAL_ARG:
+                    result = ""
             elif choice == "":
                 result = self.default
             elif choice.isdigit() and not in_range(int(choice),
@@ -591,14 +609,15 @@ def build_menu(j, parent_recipe, recipe, args, env):
         raise AttributeError("Recipe must be based on a package recipe!")
     default_filename = os.path.basename(
         args.ParentRecipe.replace(".pkg.", ".jss."))
-    menu.add_submenu(Submenu("Recipe Filename", default_filename,
-                             default_filename))
+    menu.add_submenu(Submenu("Recipe Filename", default_filename, False,
+                             default=default_filename))
 
     # Identifier
     parent_recipe_id = parent_recipe["Identifier"]
     default_recipe_id = parent_recipe_id.replace(".pkg.", ".jss.")
-    menu.add_submenu(Submenu("Identifier", default_recipe_id,
-                             default_recipe_id, "Recipe Identifier"))
+    menu.add_submenu(Submenu("Identifier", default_recipe_id, False,
+                             default=default_recipe_id,
+                             heading="Recipe Identifier"))
 
     # Parent Recipe
     menu.results["ParentRecipe"] = parent_recipe["Identifier"]
@@ -614,7 +633,8 @@ def build_menu(j, parent_recipe, recipe, args, env):
 
     # NAME
     parent_recipe_name = parent_recipe["Input"].get("NAME", "")
-    menu.add_submenu(Submenu("NAME", parent_recipe_name, parent_recipe_name))
+    menu.add_submenu(Submenu("NAME", parent_recipe_name, False,
+                             default=parent_recipe_name))
 
     # Policy Template
     policy_template_options = [template for template in os.listdir(os.curdir)
@@ -628,17 +648,20 @@ def build_menu(j, parent_recipe, recipe, args, env):
         policy_template_default = env["Default_Policy_Template"]
     else:
         policy_template_default = ""
-    menu.add_submenu(Submenu("POLICY_TEMPLATE", policy_template_options,
-                             policy_template_default, "Policy Template"))
+    menu.add_submenu(Submenu("POLICY_TEMPLATE", policy_template_options, True,
+                             default=policy_template_default,
+                             heading="Policy Template"))
 
     # Categories
     categories = [cat.name for cat in j.Category()]
     default_pkg_category = recipe["Input"]["CATEGORY"]
-    menu.add_submenu(Submenu("CATEGORY", categories,
-                             default_pkg_category, "Package Category"))
+    menu.add_submenu(Submenu("CATEGORY", categories, True,
+                             default=default_pkg_category,
+                             heading="Package Category"))
     default_policy_category = recipe["Input"]["POLICY_CATEGORY"]
-    menu.add_submenu(Submenu("POLICY_CATEGORY", categories,
-                             default_policy_category, "Policy Category"))
+    menu.add_submenu(Submenu("POLICY_CATEGORY", categories, True,
+                             default=default_policy_category,
+                             heading="Policy Category"))
 
     # Scope
     menu.add_submenu(ScopeSubmenu(recipe, j, env))
@@ -647,15 +670,15 @@ def build_menu(j, parent_recipe, recipe, args, env):
     icon_default = parent_recipe["Input"].get("NAME", "Icon") + ".png"
     icon_options = [icon for icon in os.listdir(os.curdir) if
                     "PNG" in os.path.splitext(icon)[1].upper()]
-    menu.add_submenu(Submenu("ICON", icon_options, icon_default,
-                             "Self Service Icon"))
+    menu.add_submenu(Submenu("ICON", icon_options, True, default=icon_default,
+                             heading="Self Service Icon"))
 
     # Self Service description.
     default_self_service_desc = recipe["Input"].get("DESCRIPTION")
     menu.add_submenu(Submenu("DESCRIPTION",
-                             default_self_service_desc,
-                             default_self_service_desc,
-                             "Self Service Description"))
+                             default_self_service_desc, True,
+                             default=default_self_service_desc,
+                             heading="Self Service Description"))
 
     return menu
 
