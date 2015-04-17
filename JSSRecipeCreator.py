@@ -180,6 +180,20 @@ class Recipe(Plist):
     recipes and saving them again. Overrides dict, so most idioms and
     patterns apply. Extends Plist.
     """
+    def __init__(self, filename=None):
+        """Init a Recipe, optionally from parsing an existing file.
+
+        Args:
+            filename: String path to a plist file.
+        """
+        super(Recipe, self).__init__(filename)
+
+        # Ensure recipe has required keys.
+        required_keys = ["Identifier", "Input", "Process"]
+        for key in required_keys:
+            if key not in self._xml:
+                raise PlistDataError("Recipe is lacking required key: %s" %
+                                     key)
 
     def new_plist(self):
         """Generate a barebones recipe plist."""
@@ -189,6 +203,16 @@ class Recipe(Plist):
         self._xml["ParentRecipe"] = ""
         self._xml["Input"] = {}
 
+    def add_input_var(self, key, value=""):
+        """Add or set a recipe input variable.
+
+        Will set value if input variable already exists.
+
+        Args:
+            key: String name of input variable.
+            value: Valid Plist format value for key.
+        """
+        self._xml["Input"][key] = value
 
 class JSSRecipe(Recipe):
     """An Autopkg JSS recipe. Extends Recipe.
@@ -208,13 +232,13 @@ class JSSRecipe(Recipe):
             filename: String path to a plist file.
         """
         super(JSSRecipe, self).__init__(filename)
+        # Ensure a JSSImporter processor has been included in template.
         try:
             self.jss_importer = [processor for processor in
                                  self["Process"] if
                                  processor["Processor"] == "JSSImporter"].pop()
         except IndexError:
             raise PlistDataError("Recipe template is missing a JSSImporter")
-
 
     def new_plist(self):
         """Construct a new, empty JSS recipe.
@@ -806,6 +830,22 @@ def main():
 
     # We need a parent recipe to use for determining some values.
     parent_recipe = Recipe(args.ParentRecipe)
+    # If the parent recipe uses PlistReader to determine version, we
+    # need to add a blank version input var to the jss recipe to get
+    # past the AutoPkg preprocessor.
+    # Recipes may use multiple versioning processors. If either
+    # Versioner or AppDmgVersioner are present, we probably don't need a
+    # <version> tag.
+    # Custom processors may also output version.
+    # Without parsing each processor, this is the best we can do.
+    # Thankfully, overriding <version> with a blank value won't unset
+    # versions found earlier, so this is a safe assumption to make.
+    parent_processors = [processor["Processor"] for processor in
+                         parent_recipe["Process"]]
+    if "PlistReader" in parent_processors:
+        if "Versioner" not in parent_processors or ("AppDmgVersioner" not in
+                                                    parent_processors):
+            recipe.add_input_var("version")
 
     # Build our interactive menu
     menu = build_menu(j, parent_recipe, recipe, args, env)
