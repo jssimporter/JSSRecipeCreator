@@ -413,14 +413,7 @@ class Submenu(object):
             print "\nPlease choose a %s" % self.heading
             print "Hit enter to accept default choice, or enter a number.\n"
 
-            # We're not afraid of zero-indexed lists!
-            indexes = xrange(len(self.options))
-            option_list = zip(indexes, self.options)
-            for option in option_list:
-                choice_string = "%s: %s" % option
-                if self.default == option[1]:
-                    choice_string += " (DEFAULT)"
-                print choice_string
+            self.display_options_list(self.options, default=self.default)
 
             print "\nCreate a new %s by entering name/path." % self.heading
             choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
@@ -440,11 +433,25 @@ class Submenu(object):
                 result = choice
 
         return {self.key: result}
+
+    def display_options_list(self, options, default=""):
+        """Prints options in columns as a numbered list.
+
+        Args:
+            options: Iterable of strings to enumerate, and print in
+                columns.
+            default: String value to mark as a default.
+        """
+        # We're not afraid of zero-indexed lists!
+        if default in options:
+            options[options.index(default)] += " (DEFAULT)"
+        choices = "\n".join(["%s: %s" % option for option in
+                             enumerate(options)])
+        print choices
+
 # pylint: enable=too-few-public-methods
 
 
-# Subclass of Submenu only to get through type-checking for
-# Menu.add().
 class ScopeSubmenu(Submenu):
     """Specialized submenu for scope questions."""
     # Group type typedef.
@@ -500,13 +507,12 @@ class ScopeSubmenu(Submenu):
             ChoiceError: User has made an invalid choice.
         """
         if not auto:
-            group_list = self._get_group_list()
             template_list = [template for template in os.listdir(os.curdir) if
                              os.path.splitext(template)[1].upper() == ".XML"]
-            print "Scope Selection Menu"
+            print "\nScope Selection Menu"
             while True:
                 print "\nGroups available on the JSS:"
-                print group_list
+                self.display_options_list(self.jss_groups)
                 print "\nScope defined so far:"
                 pprint.pprint(self.results)
                 choice = raw_input("\nTo add a new group, enter a new name. "
@@ -550,20 +556,10 @@ class ScopeSubmenu(Submenu):
 
         return {"groups": self.results}
 
-    def _get_group_list(self):
-        """Return a menu option string."""
-        # TODO: Add in columns.
-        group_list = enumerate(self.jss_groups)
-        return "\n".join(["%s: %s" % group for group in group_list])
-
     def _get_smart_group_template(self, template_list):
         """Ask user which smart group template to use."""
         default = self.env.get("Default_Group_Template", "")
-        for option in enumerate(template_list):
-            choice_string = "%s: %s" % option
-            if option[1] == default:
-                choice_string += " (DEFAULT)"
-            print choice_string
+        self.display_options_list(template_list, default)
 
         print ("\nChoose a template by selecting an ID, or entering a "
                "filename.")
