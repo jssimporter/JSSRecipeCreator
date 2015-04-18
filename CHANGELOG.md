@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Uses more specific exception subclasses.
 - Added optionalality to menus. For example, you can now specify that you don't want a policy template by selecting the ```0: <None> option.
 - Detects parent recipes that will require an empty <version> tag (uses PlistReader) and puts one in.
+- Standardized and reformatted menus and lists.
 
 ### FIXED
 - Solves unhandled exception when an invalid entry is made during auto mode.

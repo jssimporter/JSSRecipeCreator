@@ -410,23 +410,23 @@ class Submenu(object):
         if auto and self.default:
             result = self.default
         else:
-            print "\nPlease choose a %s" % self.heading
-            print "Hit enter to accept default choice, or enter a number.\n"
-
+            self.print_heading("%s Menu" % self.heading)
             self.display_options_list(self.options, default=self.default)
 
-            print "\nCreate a new %s by entering name/path." % self.heading
-            choice = raw_input("Choose and perish: (DEFAULT \'%s\') " %
-                               self.default)
+            print "\nHit enter to accept default choice."
+            print "Enter a number to select from list."
+            print "Create a new %s by entering name/path.\n" % self.heading
+            choice = raw_input("Please choose a %s: (DEFAULT \'%s\') " %
+                               (self.heading, self.default))
 
-            if choice.isdigit() and in_range(int(choice), len(option_list)):
+            if choice.isdigit() and in_range(int(choice), len(self.options)):
                 result = self.options[int(choice)]
                 if result == self.OPTIONAL_ARG:
                     result = ""
             elif choice == "":
                 result = self.default
             elif choice.isdigit() and not in_range(int(choice),
-                                                   len(option_list)):
+                                                   len(self.options)):
                 raise ChoiceError("Invalid Choice")
             else:
                 # User provided a new object value.
@@ -445,9 +445,18 @@ class Submenu(object):
         # We're not afraid of zero-indexed lists!
         if default in options:
             options[options.index(default)] += " (DEFAULT)"
-        choices = "\n".join(["%s: %s" % option for option in
-                             enumerate(options)])
+
+        # Get the length of the longest index number, plus an indent.
+        length = len(str(len(options))) + 4
+        fmt_string = "{0[0]:>{length}}: {0[1]}"
+        choices = "\n".join([fmt_string.format(option, length=length) for
+                             option in enumerate(options)])
         print choices
+
+    def print_heading(self, heading, line_char="="):
+        """Print a string, followed by a line of chars."""
+        print "\n" + heading
+        print (len(heading) - 1) * line_char
 
 # pylint: enable=too-few-public-methods
 
@@ -509,17 +518,18 @@ class ScopeSubmenu(Submenu):
         if not auto:
             template_list = [template for template in os.listdir(os.curdir) if
                              os.path.splitext(template)[1].upper() == ".XML"]
-            print "\nScope Selection Menu"
             while True:
-                print "\nGroups available on the JSS:"
+                self.print_heading("Scope Menu")
+                print "Groups available on the JSS:"
                 self.display_options_list(self.jss_groups)
-                print "\nScope defined so far:"
-                pprint.pprint(self.results)
-                choice = raw_input("\nTo add a new group, enter a new name. "
-                                   "You  may use substitution variables.\nTo "
-                                   "select an existing group, enter its ID "
-                                   "above, or its name.\nTo QUIT this menu, "
-                                   "hit 'return'. ")
+                self.print_heading("Current Scope")
+                self.display_results()
+                print ("\nTo add a new group, enter a new name. You may use "
+                       "substitution variables.")
+                print ("To select an existing group, enter its ID above, or "
+                       "its name.")
+                print "To QUIT this menu, hit 'return'. "
+                choice = raw_input("\nGroup command: ")
 
                 # Handle primary group menu choice.
                 if choice.isdigit() and in_range(int(choice),
@@ -559,12 +569,13 @@ class ScopeSubmenu(Submenu):
     def _get_smart_group_template(self, template_list):
         """Ask user which smart group template to use."""
         default = self.env.get("Default_Group_Template", "")
+        self.print_heading("Smart Group Template")
         self.display_options_list(template_list, default)
 
         print ("\nChoose a template by selecting an ID, or entering a "
-               "filename.")
+               "filename.\n")
         template_choice = raw_input(
-            "Choose and perish: (DEFAULT '%s') " % default)
+            "Select a group template: (DEFAULT '%s') " % default)
 
         if template_choice.isdigit() and in_range(
                 int(template_choice), len(template_list)):
@@ -608,6 +619,17 @@ class ScopeSubmenu(Submenu):
             result = self.STATIC_GROUP
 
         return result
+
+    def display_results(self):
+        """Pretty print current results."""
+        for result in self.results:
+            if result["smart"]:
+                print "Smart Group:"
+            else:
+                print "Static Group:"
+            print "\n".join(["    %s: %s" % (item, result[item]) for item in
+                             result])
+
 
 
 def configure_jss(env):
