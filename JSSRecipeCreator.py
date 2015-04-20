@@ -55,7 +55,7 @@ import jss
 AUTOPKG_PREFERENCES = "~/Library/Preferences/com.github.autopkg.plist"
 PREFERENCES = "~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist"
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 
 class Error(Exception):

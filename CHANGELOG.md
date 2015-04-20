@@ -3,12 +3,14 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased][unreleased]
+
+## [1.0.0] - 2015-04-20 Bodacious
 ### CHANGED
 - You can now specify any number of parent recipes on the commandline, and JSSRecipCreator will take you through the generation process for each one.
 - Reformatted CHANGELOG...
 - Style and lint updates for code beauty.
 - Uses more specific exception subclasses.
-- Added optionalality to menus. For example, you can now specify that you don't want a policy template by selecting the ```0: <None> option.
+- Added optionality to menus. For example, you can now specify that you don't want a policy template by selecting the ```0: <None> option.
 - Detects parent recipes that will require an empty <version> tag (uses PlistReader) and puts one in.
 - Standardized and reformatted menus and lists.
 
