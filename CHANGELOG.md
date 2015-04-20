@@ -4,6 +4,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased][unreleased]
 ### CHANGED
+- You can now specify any number of parent recipes on the commandline, and JSSRecipCreator will take you through the generation process for each one.
 - Reformatted CHANGELOG...
 - Style and lint updates for code beauty.
 - Uses more specific exception subclasses.
@@ -13,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### FIXED
 - Solves unhandled exception when an invalid entry is made during auto mode.
+- Handles parent recipes and recipe templates that don't have the full range of expected keys.
 
 ## [0.1.0] - 2015-01-14 Michaelangelo is a Party Dude
 ### CHANGED
