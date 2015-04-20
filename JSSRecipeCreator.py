@@ -53,7 +53,7 @@ import jss
 # Globals
 # Edit these if you want to change their default values.
 AUTOPKG_PREFERENCES = "~/Library/Preferences/com.github.autopkg.plist"
-PREFERENCES = "~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist"
+PREFERENCES = os.path.expanduser("~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist")
 
 __version__ = "1.0.0"
 
@@ -696,7 +696,8 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
     # global from above, and barring that, use "".
     if recipe["Input"].get("POLICY_TEMPLATE"):
         policy_template_default = recipe["Input"]["POLICY_TEMPLATE"]
-    elif env["Default_Policy_Template"] in policy_template_options:
+    elif (env.get("Default_Policy_Template") and
+          env["Default_Policy_Template"] in policy_template_options):
         policy_template_default = env["Default_Policy_Template"]
     else:
         policy_template_default = ""
