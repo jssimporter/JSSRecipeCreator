@@ -4,6 +4,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased][unreleased]
 
+## [1.0.1] - 2015-04-20 Bodacious 2
+### FIXED
+- Every run recreated the JSSRecipeCreator preferences. No more!
+- ```Default_Policy_Template``` no longer a required preference.
+- ```Default_Recipe_Template``` no longer required.
+- ```Default_Recipe_Desc_PS``` no longer required.
+- ```Recipe_Comment``` no longer required.
+
 ## [1.0.0] - 2015-04-20 Bodacious
 ### CHANGED
 - You can now specify any number of parent recipes on the commandline, and JSSRecipCreator will take you through the generation process for each one.

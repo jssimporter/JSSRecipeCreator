@@ -55,7 +55,7 @@ import jss
 AUTOPKG_PREFERENCES = "~/Library/Preferences/com.github.autopkg.plist"
 PREFERENCES = os.path.expanduser("~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist")
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 class Error(Exception):
@@ -681,7 +681,7 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
     # Append a JSS recipe description to the parent's string.
     menu.results["Description"] = (parent_recipe.get(
         "Description", "Builds a package of %s." %
-        parent_recipe_name) + env["Default_Recipe_Desc_PS"])
+        parent_recipe_name) + env.get("Default_Recipe_Desc_PS", ""))
 
     # Use the parent's Minimum version since JSSImporter has no extra
     # version requirements.
@@ -763,10 +763,11 @@ def build_argparser(env):
     # AND -s being specified on the cmdline. This is tested for in the
     # logic later.
     recipe_template_parser = parser.add_mutually_exclusive_group()
+    default_recipe_template = env.get("Default_Recipe_Template", "")
     recipe_template_parser.add_argument(
         "-r", "--recipe_template", help="Use a recipe template. Defaults to a "
         "file named %s in the current directory," %
-        env["Default_Recipe_Template"], default=env["Default_Recipe_Template"])
+        default_recipe_template, default=default_recipe_template)
     recipe_template_parser.add_argument(
         "-s", "--from_scratch", help="Do not use a recipe template; instead, "
         "build a recipe from scratch.", action="store_true")
@@ -894,13 +895,14 @@ def main():
         pprint(menu.results)
 
         # Merge the answers with the JSSRecipe.
-        recipe.update(menu.results, env["Recipe_Comment"])
+        recipe.update(menu.results, env.get("Recipe_Comment", ""))
         recipe.write_plist(menu.results["Recipe Filename"])
 
         # Final output.
         print_heading("Lint")
         print "Checking plist syntax..."
-        subprocess.check_call(["plutil", "-lint", menu.results["Recipe Filename"]])
+        subprocess.check_call(["plutil", "-lint",
+                               menu.results["Recipe Filename"]])
         print
 
 
