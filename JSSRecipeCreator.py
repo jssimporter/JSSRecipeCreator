@@ -37,7 +37,6 @@ optional arguments:
 
 import argparse
 import os.path
-import pprint
 import readline  # pylint: disable=unused-import
 import subprocess
 
@@ -191,6 +190,7 @@ class Recipe(Plist):
             value: Valid Plist format value for key.
         """
         self["Input"][key] = value
+
 
 class JSSRecipe(Recipe):
     """An Autopkg JSS recipe. Extends Recipe.
@@ -410,7 +410,7 @@ class Submenu(object):
         if auto and self.default:
             result = self.default
         else:
-            self.print_heading("%s Menu" % self.heading)
+            print_heading("%s Menu" % self.heading)
             self.display_options_list(self.options, default=self.default)
 
             print "\nHit enter to accept default choice."
@@ -452,11 +452,6 @@ class Submenu(object):
         choices = "\n".join([fmt_string.format(option, length=length) for
                              option in enumerate(options)])
         print choices
-
-    def print_heading(self, heading, line_char="="):
-        """Print a string, followed by a line of chars."""
-        print "\n" + heading
-        print (len(heading) - 1) * line_char
 
 # pylint: enable=too-few-public-methods
 
@@ -519,10 +514,10 @@ class ScopeSubmenu(Submenu):
             template_list = [template for template in os.listdir(os.curdir) if
                              os.path.splitext(template)[1].upper() == ".XML"]
             while True:
-                self.print_heading("Scope Menu")
+                print_heading("Scope Menu")
                 print "Groups available on the JSS:"
                 self.display_options_list(self.jss_groups)
-                self.print_heading("Current Scope")
+                print_heading("Current Scope")
                 self.display_results()
                 print ("\nTo add a new group, enter a new name. You may use "
                        "substitution variables.")
@@ -569,7 +564,7 @@ class ScopeSubmenu(Submenu):
     def _get_smart_group_template(self, template_list):
         """Ask user which smart group template to use."""
         default = self.env.get("Default_Group_Template", "")
-        self.print_heading("Smart Group Template")
+        print_heading("Smart Group Template")
         self.display_options_list(template_list, default)
 
         print ("\nChoose a template by selecting an ID, or entering a "
@@ -838,6 +833,25 @@ def get_preferences():
     return env
 
 
+def pprint(data, indent=4):
+    """Pretty print a dictionary with indention."""
+    for item in data:
+        if isinstance(data, list):
+            pprint(item, indent + 8)
+            print
+        elif isinstance(data[item], list):
+            print indent * " " + "%15s:" % item
+            pprint(data[item], indent + 8)
+        else:
+            print indent * " " + "%15s: %s" % (item, data[item])
+
+
+def print_heading(heading, line_char="="):
+    """Print a string, followed by a line of chars."""
+    print "\n" + heading
+    print (len(heading) - 1) * line_char
+
+
 def main():
     """Commandline processing of JSSRecipeCreator."""
     # Get JSSRecipeCreator preferences.
@@ -885,19 +899,19 @@ def main():
         menu.run_auto()
     else:
         menu.run()
-    print
-    pprint.pprint(menu.results)
+
+    print_heading("Results")
+    pprint(menu.results)
 
     # Merge the answers with the JSSRecipe.
     recipe.update(menu.results, env["Recipe_Comment"])
     recipe.write_plist(menu.results["Recipe Filename"])
 
     # Final output.
-    print
-    pprint.pprint(recipe)
-    print
+    print_heading("Lint")
     print "Checking plist syntax..."
     subprocess.check_call(["plutil", "-lint", menu.results["Recipe Filename"]])
+    print
 
 
 if __name__ == "__main__":
