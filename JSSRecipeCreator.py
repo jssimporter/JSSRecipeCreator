@@ -634,7 +634,7 @@ def configure_jss(env):
     return j
 
 
-def build_menu(j, parent_recipe, recipe, args, env):
+def build_menu(j, parent_recipe, recipe, parent_filename, env):
     """Construct the menu for prompting users to create a JSS recipe.
 
     Args:
@@ -655,10 +655,10 @@ def build_menu(j, parent_recipe, recipe, args, env):
     menu = Menu()
 
     # Filename.
-    if not "PKG.RECIPE" in args.ParentRecipe.upper():
+    if not "PKG.RECIPE" in parent_filename.upper():
         raise AttributeError("Recipe must be based on a package recipe!")
     default_filename = os.path.basename(
-        args.ParentRecipe.replace(".pkg.", ".jss."))
+        parent_filename.replace(".pkg.", ".jss."))
     menu.add_submenu(Submenu("Recipe Filename", default_filename, False,
                              default=default_filename))
 
@@ -746,7 +746,8 @@ def build_argparser(env):
     """
     parser = argparse.ArgumentParser(description="Quickly generate JSS "
                                      "recipes.")
-    parser.add_argument("ParentRecipe", help="Path to a parent recipe.")
+    parser.add_argument("ParentRecipe", help="Path to a parent recipe.",
+                        nargs="*")
 
     # This part is kind of confusing:
     # We have two options-build a JSSRecipe procedurally, or read in a
@@ -852,50 +853,52 @@ def main():
     autopkg_env = Plist(AUTOPKG_PREFERENCES)
     j = configure_jss(autopkg_env)
 
-    # Create a JSSRecipe object
-    # from_scratch and recipe_template are mutually exclusive
-    if args.from_scratch:
-        recipe = JSSRecipe()
-    else:
-        recipe = JSSRecipe(args.recipe_template)
+    for parent in args.ParentRecipe:
+        print parent
+        # Create a JSSRecipe object
+        # from_scratch and recipe_template are mutually exclusive
+        if args.from_scratch:
+            recipe = JSSRecipe()
+        else:
+            recipe = JSSRecipe(args.recipe_template)
 
-    # We need a parent recipe to use for determining some values.
-    parent_recipe = Recipe(args.ParentRecipe)
-    # If the parent recipe uses PlistReader to determine version, we
-    # need to add a blank version input var to the jss recipe to get
-    # past the AutoPkg preprocessor.
-    # Recipes may use multiple versioning processors. If either
-    # Versioner or AppDmgVersioner are present, we probably don't need a
-    # <version> tag.
-    # Custom processors may also output version.
-    # Without parsing each processor, this is the best we can do.
-    # Thankfully, overriding <version> with a blank value won't unset
-    # versions found earlier, so this is a safe assumption to make.
-    parent_processors = [processor["Processor"] for processor in
-                         parent_recipe["Process"]]
-    if "PlistReader" in parent_processors:
-        if "Versioner" not in parent_processors or ("AppDmgVersioner" not in
-                                                    parent_processors):
-            recipe.add_input_var("version")
+        # We need a parent recipe to use for determining some values.
+        parent_recipe = Recipe(parent)
+        # If the parent recipe uses PlistReader to determine version, we
+        # need to add a blank version input var to the jss recipe to get
+        # past the AutoPkg preprocessor.
+        # Recipes may use multiple versioning processors. If either
+        # Versioner or AppDmgVersioner are present, we probably don't need a
+        # <version> tag.
+        # Custom processors may also output version.
+        # Without parsing each processor, this is the best we can do.
+        # Thankfully, overriding <version> with a blank value won't unset
+        # versions found earlier, so this is a safe assumption to make.
+        parent_processors = [processor["Processor"] for processor in
+                            parent_recipe["Process"]]
+        if "PlistReader" in parent_processors:
+            if "Versioner" not in parent_processors or ("AppDmgVersioner" not in
+                                                        parent_processors):
+                recipe.add_input_var("version")
 
-    # Build our interactive menu
-    menu = build_menu(j, parent_recipe, recipe, args, env)
+        # Build our interactive menu
+        menu = build_menu(j, parent_recipe, recipe, parent, env)
 
-    # Run the questions past the user.
-    menu.run(auto=args.auto)
+        # Run the questions past the user.
+        menu.run(auto=args.auto)
 
-    print_heading("Results")
-    pprint(menu.results)
+        print_heading("Results")
+        pprint(menu.results)
 
-    # Merge the answers with the JSSRecipe.
-    recipe.update(menu.results, env["Recipe_Comment"])
-    recipe.write_plist(menu.results["Recipe Filename"])
+        # Merge the answers with the JSSRecipe.
+        recipe.update(menu.results, env["Recipe_Comment"])
+        recipe.write_plist(menu.results["Recipe Filename"])
 
-    # Final output.
-    print_heading("Lint")
-    print "Checking plist syntax..."
-    subprocess.check_call(["plutil", "-lint", menu.results["Recipe Filename"]])
-    print
+        # Final output.
+        print_heading("Lint")
+        print "Checking plist syntax..."
+        subprocess.check_call(["plutil", "-lint", menu.results["Recipe Filename"]])
+        print
 
 
 if __name__ == "__main__":
