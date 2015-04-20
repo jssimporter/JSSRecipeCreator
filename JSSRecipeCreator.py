@@ -427,7 +427,7 @@ class Submenu(object):
                 result = self.default
             elif choice.isdigit() and not in_range(int(choice),
                                                    len(self.options)):
-                raise ChoiceError("Invalid Choice")
+                raise ChoiceError("Invalid Choice.")
             else:
                 # User provided a new object value.
                 result = choice
