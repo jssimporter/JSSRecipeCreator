@@ -672,19 +672,21 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
     # Parent Recipe
     menu.results["ParentRecipe"] = parent_recipe["Identifier"]
 
-    # Description, Min version.
-    # Append a JSS recipe description to the parent's string.
-    menu.results["Description"] = (parent_recipe["Description"] +
-                                   env["Default_Recipe_Desc_PS"])
-
-    # Use the parent's Minimum version since JSSImporter has no extra
-    # version requirements.
-    menu.results["MinimumVersion"] = parent_recipe["MinimumVersion"]
-
     # NAME
     parent_recipe_name = parent_recipe["Input"].get("NAME", "")
     menu.add_submenu(Submenu("NAME", parent_recipe_name, False,
                              default=parent_recipe_name))
+
+    # Description, Min version.
+    # Append a JSS recipe description to the parent's string.
+    menu.results["Description"] = (parent_recipe.get(
+        "Description", "Builds a package of %s." %
+        parent_recipe_name) + env["Default_Recipe_Desc_PS"])
+
+    # Use the parent's Minimum version since JSSImporter has no extra
+    # version requirements.
+    menu.results["MinimumVersion"] = parent_recipe.get("MinimumVersion",
+                                                       "0.4.2")
 
     # Policy Template
     policy_template_options = [template for template in os.listdir(os.curdir)
@@ -704,11 +706,11 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
 
     # Categories
     categories = [cat.name for cat in j.Category()]
-    default_pkg_category = recipe["Input"]["CATEGORY"]
+    default_pkg_category = recipe["Input"].get("CATEGORY", "")
     menu.add_submenu(Submenu("CATEGORY", categories, True,
                              default=default_pkg_category,
                              heading="Package Category"))
-    default_policy_category = recipe["Input"]["POLICY_CATEGORY"]
+    default_policy_category = recipe["Input"].get("POLICY_CATEGORY", "")
     menu.add_submenu(Submenu("POLICY_CATEGORY", categories, True,
                              default=default_policy_category,
                              heading="Policy Category"))
@@ -726,7 +728,7 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
                              heading="Self Service Icon"))
 
     # Self Service description.
-    default_self_service_desc = recipe["Input"].get("DESCRIPTION")
+    default_self_service_desc = recipe["Input"].get("DESCRIPTION", "")
     menu.add_submenu(Submenu("DESCRIPTION",
                              default_self_service_desc, True,
                              default=default_self_service_desc,
