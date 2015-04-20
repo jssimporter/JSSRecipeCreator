@@ -877,10 +877,10 @@ def main():
         # Thankfully, overriding <version> with a blank value won't unset
         # versions found earlier, so this is a safe assumption to make.
         parent_processors = [processor["Processor"] for processor in
-                            parent_recipe["Process"]]
+                             parent_recipe["Process"]]
         if "PlistReader" in parent_processors:
-            if "Versioner" not in parent_processors or ("AppDmgVersioner" not in
-                                                        parent_processors):
+            if "Versioner" not in parent_processors or ("AppDmgVersioner" not
+                                                        in parent_processors):
                 recipe.add_input_var("version")
 
         # Build our interactive menu
