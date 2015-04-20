@@ -313,31 +313,19 @@ class Menu(object):
         self.submenus = []
         self.results = {}
 
-    def run(self):
+    def run(self, auto):
         """Run, in order, through our submenus, asking questions.
 
         Updates results after handling questions.
+
+        Args:
+            auto: Bool indicating whether to automatically use any
+                default values.
         """
         for submenu in self.submenus:
             while True:
                 try:
-                    result = submenu.ask()
-                    break
-                except ChoiceError:
-                    print "\n**Invalid entry! Try again.**"
-                    continue
-            self.results.update(result)
-
-    def run_auto(self):
-        """Ask questions which have no default.
-
-        Runs in order through submenus, asking questions where no
-        default value has been provided, and then sets the results.
-        """
-        for submenu in self.submenus:
-            while True:
-                try:
-                    result = submenu.ask(auto=True)
+                    result = submenu.ask(auto=auto)
                     break
                 except ChoiceError:
                     print "\n**Invalid entry! Try again.**"
@@ -626,7 +614,6 @@ class ScopeSubmenu(Submenu):
                              result])
 
 
-
 def configure_jss(env):
     """Configure a JSS object based on JSSRecipeCreator's env.
 
@@ -895,10 +882,7 @@ def main():
     menu = build_menu(j, parent_recipe, recipe, args, env)
 
     # Run the questions past the user.
-    if args.auto:
-        menu.run_auto()
-    else:
-        menu.run()
+    menu.run(auto=args.auto)
 
     print_heading("Results")
     pprint(menu.results)
