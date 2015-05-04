@@ -53,7 +53,8 @@ import jss
 # Globals
 # Edit these if you want to change their default values.
 AUTOPKG_PREFERENCES = "~/Library/Preferences/com.github.autopkg.plist"
-PREFERENCES = os.path.expanduser("~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist")
+PREFERENCES = os.path.expanduser(
+    "~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist")
 
 __version__ = "1.0.1"
 
