@@ -1,0 +1,26 @@
+Description: ''
+Identifier: ''
+Input:
+  CATEGORY: ''
+  DESCRIPTION: ''
+  GROUP_NAME: '%NAME%-update-smart'
+  GROUP_TEMPLATE: '%RECIPE_DIR%/SmartGroupTemplate.xml'
+  ICON: ''
+  NAME: ''
+  POLICY_CATEGORY: Testing
+  POLICY_TEMPLATE: PolicyTemplate.xml
+MinimumVersion: ''
+ParentRecipe: ''
+Process:
+- Arguments:
+    category: '%CATEGORY%'
+    groups:
+    - name: '%GROUP_NAME%'
+      smart: true
+      template_path: '%GROUP_TEMPLATE%'
+    policy_category: '%POLICY_CATEGORY%'
+    policy_template: '%POLICY_TEMPLATE%'
+    prod_name: '%NAME%'
+    self_service_description: '%DESCRIPTION%'
+    self_service_icon: '%ICON%'
+  Processor: JSSImporter

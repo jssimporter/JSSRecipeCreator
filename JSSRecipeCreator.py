@@ -27,11 +27,15 @@ optional arguments:
   -h, --help            show this help message and exit
   -r RECIPE_TEMPLATE, --recipe_template RECIPE_TEMPLATE
                         Use a recipe template. Defaults to a file named
-                        RecipeTemplate.xml in the current directory,
+                        RecipeTemplate.plist in the current directory,
   -s, --from_scratch    Do not use a recipe template; instead, build a
                         recipe from scratch.
   -a, --auto            Uses default choices for all questions that have
                         detected values. Prompts for those which don't.
+  -d PATH_TO_FOLDER, --dest PATH_TO_FOLDER
+                        Path to folder in which to write the recipe.
+                        Defaults to the current folder.
+
 """
 
 
@@ -39,6 +43,7 @@ import argparse
 import os.path
 import readline  # pylint: disable=unused-import
 import subprocess
+import sys
 
 # pylint: disable=no-name-in-module
 from Foundation import (NSData,
@@ -46,6 +51,9 @@ from Foundation import (NSData,
                         NSPropertyListMutableContainersAndLeaves,
                         NSPropertyListXMLFormat_v1_0)
 # pylint: enable=no-name-in-module
+
+
+sys.path.insert(0, '/Library/Application Support/JSSImporter')
 
 import jss
 
@@ -56,7 +64,7 @@ AUTOPKG_PREFERENCES = "~/Library/Preferences/com.github.autopkg.plist"
 PREFERENCES = os.path.expanduser(
     "~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist")
 
-__version__ = "1.0.1"
+__version__ = "1.1.0b1"
 
 
 class Error(Exception):
@@ -329,7 +337,7 @@ class Menu(object):
                     result = submenu.ask(auto=auto)
                     break
                 except ChoiceError:
-                    print "\n**Invalid entry! Try again.**"
+                    print("\n**Invalid entry! Try again.**")
                     continue
             self.results.update(result)
 
@@ -402,9 +410,9 @@ class Submenu(object):
             print_heading("%s Menu" % self.heading)
             self.display_options_list(self.options, default=self.default)
 
-            print "\nHit enter to accept default choice."
-            print "Enter a number to select from list."
-            print "Create a new %s by entering name/path.\n" % self.heading
+            print("\nHit enter to accept default choice."
+                  "\nEnter a number to select from list."
+                  "\nCreate a new %s by entering name/path.\n" % self.heading)
             choice = raw_input("Please choose a %s: (DEFAULT \'%s\') " %
                                (self.heading, self.default))
 
@@ -440,7 +448,7 @@ class Submenu(object):
         fmt_string = "{0[0]:>{length}}: {0[1]}"
         choices = "\n".join([fmt_string.format(option, length=length) for
                              option in enumerate(options)])
-        print choices
+        print(choices)
 
 # pylint: enable=too-few-public-methods
 
@@ -504,15 +512,15 @@ class ScopeSubmenu(Submenu):
                              os.path.splitext(template)[1].upper() == ".XML"]
             while True:
                 print_heading("Scope Menu")
-                print "Groups available on the JSS:"
+                print("Groups available on the JSS:")
                 self.display_options_list(self.jss_groups)
                 print_heading("Current Scope")
                 self.display_results()
-                print ("\nTo add a new group, enter a new name. You may use "
-                       "substitution variables.")
-                print ("To select an existing group, enter its ID above, or "
-                       "its name.")
-                print "To QUIT this menu, hit 'return'. "
+                print("\nTo add a new group, enter a new name. You may use "
+                      "substitution variables.")
+                print("To select an existing group, enter its ID above, or "
+                      "its name.")
+                print("To QUIT this menu, hit 'return'. ")
                 choice = raw_input("\nGroup command: ")
 
                 # Handle primary group menu choice.
@@ -556,8 +564,8 @@ class ScopeSubmenu(Submenu):
         print_heading("Smart Group Template")
         self.display_options_list(template_list, default)
 
-        print ("\nChoose a template by selecting an ID, or entering a "
-               "filename.\n")
+        print("\nChoose a template by selecting an ID, or entering a "
+              "filename.\n")
         template_choice = raw_input(
             "Select a group template: (DEFAULT '%s') " % default)
 
@@ -592,7 +600,7 @@ class ScopeSubmenu(Submenu):
         """
         try:
             group = self.j.ComputerGroup(name)
-        except jss.exceptions.JSSGetError:
+        except jss.exceptions.GetError:
             group = None
 
         if group is None:
@@ -608,11 +616,11 @@ class ScopeSubmenu(Submenu):
         """Pretty print current results."""
         for result in self.results:
             if result["smart"]:
-                print "Smart Group:"
+                print("Smart Group:")
             else:
-                print "Static Group:"
-            print "\n".join(["    %s: %s" % (item, result[item]) for item in
-                             result])
+                print("Static Group:")
+            print("\n".join(["    %s: %s" % (item, result[item]) for item in
+                             result]))
 
 
 def configure_jss(env):
@@ -687,7 +695,7 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
     # Use the parent's Minimum version since JSSImporter has no extra
     # version requirements.
     menu.results["MinimumVersion"] = parent_recipe.get("MinimumVersion",
-                                                       "0.4.2")
+                                                       "1.0.0")
 
     # Policy Template
     policy_template_options = [template for template in os.listdir(os.curdir)
@@ -759,12 +767,13 @@ def build_argparser(env):
     # template, since most people will want to use one. So, we create a
     # mutually exclusive group. If you don't specify either of the -r or
     # -s options, it uses the default recipe template as specified in
-    # the global above. If you specify both argparse stops execution.
+    # the global above. If you specify both, argparse stops execution.
     # The only other case we need to worry about is a defaulted -r value
     # AND -s being specified on the cmdline. This is tested for in the
     # logic later.
     recipe_template_parser = parser.add_mutually_exclusive_group()
     default_recipe_template = env.get("Default_Recipe_Template", "")
+    dest = env.get("Default_Destination_Folder", "")
     recipe_template_parser.add_argument(
         "-r", "--recipe_template", help="Use a recipe template. Defaults to a "
         "file named %s in the current directory," %
@@ -776,6 +785,9 @@ def build_argparser(env):
     parser.add_argument("-a", "--auto", help="Uses default choices for all "
                         "questions that have detected values. Prompts for "
                         "those which don't.", action="store_true")
+    parser.add_argument(
+        "-d", "--dest", help="Path (folder) to which to write the recipe. "
+        "Defaults to %s." % default_recipe_template, default=default_recipe_template)
 
     return parser
 
@@ -809,16 +821,17 @@ def get_preferences():
         env = Plist(PREFERENCES)
     else:
         env = Plist()
-        env["Default_Recipe_Template"] = "RecipeTemplate.xml"
+        env["Default_Recipe_Template"] = "RecipeTemplate.plist"
         env["Default_Policy_Template"] = "PolicyTemplate.xml"
-        env["Default_Recipe_Desc_PS"] = " Then, uploads to the JSS."
+        env["Default_Recipe_Desc_PS"] = " Then, uploads to the Jamf Pro Server."
         env["Default_Group_Template"] = "SmartGroupTemplate.xml"
+        env["Default_Destination_Folder"] = "."
         env["Recipe_Comment"] = (
             "\nThis AutoPkg recipe was created using JSSRecipeCreator: "
-            "\nhttps://github.com/sheagcraig/JSSRecipeCreator\n\n"
+            "\nhttps://github.com/jssimporter/JSSRecipeCreator\n\n"
             "It is meant to be used with JSSImporter: \n"
-            "https://github.com/sheagcraig/JSSImporter\n\n"
-            "For tips on integrating JSSImporter into your Casper "
+            "https://github.com/jssimporter/JSSImporter\n\n"
+            "For tips on integrating JSSImporter into your Jamf Pro "
             "environment, check out Auto Update Magic:\n"
             "https://github.com/homebysix/auto-update-magic")
         env.write_plist(PREFERENCES)
@@ -833,16 +846,16 @@ def pprint(data, indent=4):
             pprint(item, indent + 8)
             print
         elif isinstance(data[item], list):
-            print indent * " " + "%15s:" % item
+            print(indent * " " + "%15s:" % item)
             pprint(data[item], indent + 8)
         else:
-            print indent * " " + "%15s: %s" % (item, data[item])
+            print(indent * " " + "%15s: %s" % (item, data[item]))
 
 
 def print_heading(heading, line_char="="):
     """Print a string, followed by a line of chars."""
-    print "\n" + heading
-    print (len(heading) - 1) * line_char
+    print("\n" + heading)
+    print((len(heading) - 1) * line_char)
 
 
 def main():
@@ -859,7 +872,7 @@ def main():
     j = configure_jss(autopkg_env)
 
     for parent in args.ParentRecipe:
-        print parent
+        print(parent)
         # Create a JSSRecipe object
         # from_scratch and recipe_template are mutually exclusive
         if args.from_scratch:
@@ -897,14 +910,19 @@ def main():
 
         # Merge the answers with the JSSRecipe.
         recipe.update(menu.results, env.get("Recipe_Comment", ""))
-        recipe.write_plist(menu.results["Recipe Filename"])
+        dest_path = os.path.join(args.dest, menu.results["Recipe Filename"])
+        print("\nWriting to %s" % dest_path)
+        recipe.write_plist(dest_path)
 
         # Final output.
         print_heading("Lint")
-        print "Checking plist syntax..."
-        subprocess.check_call(["plutil", "-lint",
-                               menu.results["Recipe Filename"]])
-        print
+        print("Checking plist syntax...")
+        try:
+            subprocess.check_call(["plutil", "-lint", dest_path])
+        except subprocess.CalledProcessError:
+            print("Could not find file!")
+        print("\nDon't forget to copy the icon to the recipe's directory,"
+              "and commit your changes to git!\n")
 
 
 if __name__ == "__main__":
