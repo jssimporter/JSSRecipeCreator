@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## [1.1.0b1] - 2019-09-14 - 1.1.0b1
 ### CHANGED
 - Now points to the python-jss that is installed from JSSImporter. You can `pip uninstall python-jss` now...
+- Added the option to specify a destintation folder to which to write the recipe.
 - Moved the contents of the README to the wiki.
 
 ## [1.0.1] - 2015-04-20 - Bodacious 2
