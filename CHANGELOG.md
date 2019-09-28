@@ -4,7 +4,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased][unreleased]
 
-## [1.0.1] - 2015-04-20 Bodacious 2
+## [1.1.0b1] - 2019-09-14 - 1.1.0b1
+### CHANGED
+- Now points to the python-jss that is installed from JSSImporter. You can `pip uninstall python-jss` now...
+- Added the option to specify a destintation folder to which to write the recipe.
+- Moved the contents of the README to the wiki.
+
+## [1.0.1] - 2015-04-20 - Bodacious 2
 ### FIXED
 - Every run recreated the JSSRecipeCreator preferences. No more!
 - ```Default_Policy_Template``` no longer a required preference.
@@ -12,21 +18,21 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - ```Default_Recipe_Desc_PS``` no longer required.
 - ```Recipe_Comment``` no longer required.
 
-## [1.0.0] - 2015-04-20 Bodacious
+## [1.0.0] - 2015-04-20 - Bodacious
 ### CHANGED
-- You can now specify any number of parent recipes on the commandline, and JSSRecipCreator will take you through the generation process for each one.
+- You can now specify any number of parent recipes on the commandl-ine, and JSSRecipeCreator will take you through the generation process for each one.
 - Reformatted CHANGELOG...
 - Style and lint updates for code beauty.
 - Uses more specific exception subclasses.
-- Added optionality to menus. For example, you can now specify that you don't want a policy template by selecting the ```0: <None> option.
-- Detects parent recipes that will require an empty <version> tag (uses PlistReader) and puts one in.
+- Added optionality to menus. For example, you can now specify that you don't want a policy template by selecting the `0: <None>` option.
+- Detects parent recipes that will require an empty `<version>` tag (uses `PlistReader`) and puts one in.
 - Standardized and reformatted menus and lists.
 
 ### FIXED
 - Solves unhandled exception when an invalid entry is made during auto mode.
 - Handles parent recipes and recipe templates that don't have the full range of expected keys.
 
-## [0.1.0] - 2015-01-14 Michaelangelo is a Party Dude
+## [0.1.0] - 2015-01-14 - Michaelangelo is a Party Dude
 ### CHANGED
 - Apparently I named the script file JSSRecipeGenerator.py, despite *every* other instance. Everything has been normalized to JSSRecipeCreator. Sorry for the confusion!
 - Added recipe comments to help spread the word.
@@ -44,20 +50,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### FIXED
 - Category questions would fail if given a blank category name (trying to coerce None to a string type). This has been corrected (#4)
 
-## [0.0.3] - 2014-12-19 Linty
+## [0.0.3] - 2014-12-19 - Linty
 ### CHANGED
 
 - Now does a quick "lint" check of XML with ```plutil -lint``` after generation.
 - readline support added so you can use those sweet terminal hotkeys.
 
-## [0.0.2] - 2014-12-18 Stomper
+## [0.0.2] - 2014-12-18 - Stomper
 ### CHANGED
 - Now uses AutoPkg configuration file. Hopefully you already have this configured for JSSImporter use!
 - Optional argument -r/--recipe_template allows you to use a different recipe template file.
 
 ### FIXED
-- Now prompts for a NAME if one doesn't exist. It does not, sadly, suggest "ballin' dubstep" as a potential name. 
+- Now prompts for a NAME if one doesn't exist. It does not, sadly, suggest "ballin' dubstep" as a potential name.
 
-## [0.0.1] - 2014-12-17 Ballin' Dubstep
+## [0.0.1] - 2014-12-17 - Ballin' Dubstep
 
 Initial Release

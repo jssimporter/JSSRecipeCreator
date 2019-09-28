@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Description</key>
+	<string></string>
+	<key>Identifier</key>
+	<string></string>
+	<key>Input</key>
+	<dict>
+		<key>CATEGORY</key>
+		<string></string>
+		<key>NAME</key>
+		<string></string>
+	</dict>
+	<key>MinimumVersion</key>
+	<string></string>
+	<key>ParentRecipe</key>
+	<string></string>
+	<key>Process</key>
+	<array>
+		<dict>
+			<key>Arguments</key>
+			<dict>
+				<key>category</key>
+				<string>%CATEGORY%</string>
+				<key>prod_name</key>
+				<string>%NAME%</string>
+			</dict>
+			<key>Processor</key>
+			<string>JSSImporter</string>
+		</dict>
+	</array>
+</dict>
+</plist>

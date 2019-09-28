@@ -27,11 +27,17 @@ optional arguments:
   -h, --help            show this help message and exit
   -r RECIPE_TEMPLATE, --recipe_template RECIPE_TEMPLATE
                         Use a recipe template. Defaults to a file named
-                        RecipeTemplate.xml in the current directory,
+                        RecipeTemplate.plist in the Templates directory,
   -s, --from_scratch    Do not use a recipe template; instead, build a
                         recipe from scratch.
+  -p, --package-only    Create a package-only recipe.
   -a, --auto            Uses default choices for all questions that have
                         detected values. Prompts for those which don't.
+  -d PATH_TO_FOLDER, --dest PATH_TO_FOLDER
+                        Path to folder in which to write the recipe.
+                        Defaults to the current folder.
+  -c, --clear-prefs     Clears the existing preferences so that the defaults
+                        may be used again.
 """
 
 
@@ -39,6 +45,7 @@ import argparse
 import os.path
 import readline  # pylint: disable=unused-import
 import subprocess
+import sys
 
 # pylint: disable=no-name-in-module
 from Foundation import (NSData,
@@ -47,15 +54,19 @@ from Foundation import (NSData,
                         NSPropertyListXMLFormat_v1_0)
 # pylint: enable=no-name-in-module
 
+
+sys.path.insert(0, '/Library/Application Support/JSSImporter')
+
 import jss
 
 
 # Globals
 # Edit these if you want to change their default values.
 AUTOPKG_PREFERENCES = "~/Library/Preferences/com.github.autopkg.plist"
-PREFERENCES = os.path.expanduser("~/Library/Preferences/com.github.sheagcraig.JSSRecipeCreator.plist")
+PREFERENCES = os.path.expanduser(
+    "~/Library/Preferences/com.github.jssimporter.JSSRecipeCreator.plist")
 
-__version__ = "1.0.1"
+__version__ = "1.1.0b2"
 
 
 class Error(Exception):
@@ -107,22 +118,26 @@ class Plist(dict):
             PlistParseError: Error in reading plist file.
         """
         # pylint: disable=unused-variable
-        info, pformat, error = (
-            NSPropertyListSerialization.propertyListWithData_options_format_error_(
-                NSData.dataWithContentsOfFile_(os.path.expanduser(path)),
-                NSPropertyListMutableContainersAndLeaves,
-                None,
-                None
-            ))
-        # pylint: enable=unused-variable
-        if info is None:
-            if error is None:
-                error = "Invalid plist file."
-            raise PlistParseError("Can't read %s: %s" % (path, error))
+        try:
+            info, pformat, error = (
+                NSPropertyListSerialization.propertyListWithData_options_format_error_(
+                    NSData.dataWithContentsOfFile_(os.path.expanduser(path)),
+                    NSPropertyListMutableContainersAndLeaves,
+                    None,
+                    None
+                ))
+            # pylint: enable=unused-variable
+            if info is None:
+                if error is None:
+                    error = "Invalid plist file."
+                raise PlistParseError("Can't read %s: %s" % (path, error))
+        except ValueError:
+            print("Can't read %s" % (path))
+            sys.exit()
 
         return info
 
-    def write_plist(self, path):
+    def write_plist(self, path="."):
         """Write plist to path.
 
         Args:
@@ -218,30 +233,37 @@ class JSSRecipe(Recipe):
         except IndexError:
             raise PlistDataError("Recipe template is missing a JSSImporter")
 
-    def new_plist(self):
+    def new_plist(self, package_only=None):
         """Construct a new, empty JSS recipe.
 
         All JSSImporter arguments are exposed as Input Variables
         to ensure access through overrides.
         """
         super(JSSRecipe, self).new_plist()
-        self["Input"].update({"NAME": "",
-                              "CATEGORY": "",
-                              "POLICY_CATEGORY": "",
-                              "POLICY_TEMPLATE": "",
-                              "SELV_SERVICE_ICON": "",
-                              "SELF_SERVICE_DESCRIPTION": ""})
-        self["Process"] = [{"Processor": "JSSImporter",
-                            "Arguments": {"prod_name": "%NAME%",
-                                          "category": "%CATEGORY%",
-                                          "policy_category":
-                                          "%POLICY_CATEGORY%",
-                                          "policy_template":
-                                          "%POLICY_TEMPLATE%",
-                                          "self_service_icon": "%SELV_SERVICE_ICON%",
-                                          "self_service_description":
-                                              "%SELF_SERVICE_DESCRIPTION%",
-                                          "groups": []}}]
+        if package_only:
+            self["Input"].update({"NAME": "",
+                                  "CATEGORY": ""})
+            self["Process"] = [{"Processor": "JSSImporter",
+                                "Arguments": {"prod_name": "%NAME%",
+                                              "category": "%CATEGORY%"}}]
+        else:
+            self["Input"].update({"NAME": "",
+                                  "CATEGORY": "",
+                                  "POLICY_CATEGORY": "",
+                                  "POLICY_TEMPLATE": "",
+                                  "SELF_SERVICE_ICON": "",
+                                  "SELF_SERVICE_DESCRIPTION": ""})
+            self["Process"] = [{"Processor": "JSSImporter",
+                                "Arguments": {"prod_name": "%NAME%",
+                                              "category": "%CATEGORY%",
+                                              "policy_category":
+                                              "%POLICY_CATEGORY%",
+                                              "policy_template":
+                                              "%POLICY_TEMPLATE%",
+                                              "self_service_icon": "%SELF_SERVICE_ICON%",
+                                              "self_service_description":
+                                                  "%SELF_SERVICE_DESCRIPTION%",
+                                              "groups": []}}]
 
     def add_scoping_group(self, group):
         """Add a group to the scope if it's not already included.
@@ -259,13 +281,14 @@ class JSSRecipe(Recipe):
         if group not in recipe_groups:
             recipe_groups.append(group)
 
-    def update(self, update_dict, comment=None):
+    def update_recipe(self, update_dict, package_only, comment=None):
         """Updates a JSSRecipe's values from supplied dict.
 
         Args:
             update_dict: Dictionary of recipe values. Keys should match the
                 desired INPUT variable name.
             comment: String to include as a top-level comment.
+            package_only: bool whether to update normal or package_only recipe.
         """
         # This is tightly coupled with the INPUT variable key names I
         # have chosen. This would be a good target for the next
@@ -278,24 +301,27 @@ class JSSRecipe(Recipe):
             self["Comment"] = comment
         # Input section
         self["Input"]["NAME"] = update_dict["NAME"]
-        if update_dict["POLICY_TEMPLATE"]:
-            self["Input"]["POLICY_TEMPLATE"] = ("%s" %
-                                                update_dict["POLICY_TEMPLATE"])
-        # If a blank policy template has been set, don't prepend
-        # anything; we actually want nothing!
-        else:
-            self["Input"]["POLICY_TEMPLATE"] = ""
-        self["Input"]["POLICY_CATEGORY"] = update_dict["POLICY_CATEGORY"]
         self["Input"]["CATEGORY"] = update_dict["CATEGORY"]
-        if update_dict["SELF_SERVICE_ICON"]:
-            self["Input"]["SELF_SERVICE_ICON"] = "%s" % update_dict["SELF_SERVICE_ICON"]
-        else:
-            self["Input"]["SELF_SERVICE_ICON"] = ""
-        self["Input"]["SELF_SERVICE_DESCRIPTION"] = update_dict["SELF_SERVICE_DESCRIPTION"]
+        if not package_only:
+            if update_dict["POLICY_TEMPLATE"]:
+                self["Input"]["POLICY_TEMPLATE"] = (
+                     "%%RECIPE_DIR%%/%s" % update_dict["POLICY_TEMPLATE"])
+            # If a blank policy template has been set, don't prepend
+            # anything; we actually want nothing!
+            else:
+                self["Input"]["POLICY_TEMPLATE"] = ""
+            self["Input"]["POLICY_CATEGORY"] = update_dict["POLICY_CATEGORY"]
+            if update_dict["SELF_SERVICE_ICON"]:
+                self["Input"]["SELF_SERVICE_ICON"] = ("%%RECIPE_DIR%%/%s"
+                        % update_dict["SELF_SERVICE_ICON"])
+            else:
+                self["Input"]["SELF_SERVICE_ICON"] = ""
+            self["Input"]["SELF_SERVICE_DESCRIPTION"] = update_dict[
+                 "SELF_SERVICE_DESCRIPTION"]
 
-        # Handle groups
-        for group in update_dict["groups"]:
-            self.add_scoping_group(group)
+            # Handle groups
+            for group in update_dict["groups"]:
+                self.add_scoping_group(group)
 
 
 class Menu(object):
@@ -313,7 +339,7 @@ class Menu(object):
         self.submenus = []
         self.results = {}
 
-    def run(self, auto):
+    def run(self, auto, package_only):
         """Run, in order, through our submenus, asking questions.
 
         Updates results after handling questions.
@@ -328,7 +354,7 @@ class Menu(object):
                     result = submenu.ask(auto=auto)
                     break
                 except ChoiceError:
-                    print "\n**Invalid entry! Try again.**"
+                    print("\n**Invalid entry! Try again.**")
                     continue
             self.results.update(result)
 
@@ -401,9 +427,9 @@ class Submenu(object):
             print_heading("%s Menu" % self.heading)
             self.display_options_list(self.options, default=self.default)
 
-            print "\nHit enter to accept default choice."
-            print "Enter a number to select from list."
-            print "Create a new %s by entering name/path.\n" % self.heading
+            print("\nHit enter to accept default choice."
+                  "\nEnter a number to select from list."
+                  "\nCreate a new %s by entering name/path.\n" % self.heading)
             choice = raw_input("Please choose a %s: (DEFAULT \'%s\') " %
                                (self.heading, self.default))
 
@@ -439,7 +465,7 @@ class Submenu(object):
         fmt_string = "{0[0]:>{length}}: {0[1]}"
         choices = "\n".join([fmt_string.format(option, length=length) for
                              option in enumerate(options)])
-        print choices
+        print(choices)
 
 # pylint: enable=too-few-public-methods
 
@@ -503,15 +529,15 @@ class ScopeSubmenu(Submenu):
                              os.path.splitext(template)[1].upper() == ".XML"]
             while True:
                 print_heading("Scope Menu")
-                print "Groups available on the JSS:"
+                print("Groups available on the JSS:")
                 self.display_options_list(self.jss_groups)
                 print_heading("Current Scope")
                 self.display_results()
-                print ("\nTo add a new group, enter a new name. You may use "
-                       "substitution variables.")
-                print ("To select an existing group, enter its ID above, or "
-                       "its name.")
-                print "To QUIT this menu, hit 'return'. "
+                print("\nTo add a new group, enter a new name. You may use "
+                      "substitution variables.")
+                print("To select an existing group, enter its ID above, or "
+                      "its name.")
+                print("To QUIT this menu, hit 'return'. ")
                 choice = raw_input("\nGroup command: ")
 
                 # Handle primary group menu choice.
@@ -555,8 +581,8 @@ class ScopeSubmenu(Submenu):
         print_heading("Smart Group Template")
         self.display_options_list(template_list, default)
 
-        print ("\nChoose a template by selecting an ID, or entering a "
-               "filename.\n")
+        print("\nChoose a template by selecting an ID, or entering a "
+              "filename.\n")
         template_choice = raw_input(
             "Select a group template: (DEFAULT '%s') " % default)
 
@@ -589,7 +615,7 @@ class ScopeSubmenu(Submenu):
         """
         try:
             group = self.j.ComputerGroup(name)
-        except jss.exceptions.JSSGetError:
+        except jss.exceptions.GetError:
             group = None
 
         if group is None:
@@ -605,11 +631,11 @@ class ScopeSubmenu(Submenu):
         """Pretty print current results."""
         for result in self.results:
             if result["smart"]:
-                print "Smart Group:"
+                print("Smart Group:")
             else:
-                print "Static Group:"
-            print "\n".join(["    %s: %s" % (item, result[item]) for item in
-                             result])
+                print("Static Group:")
+            print("\n".join(["    %s: %s" % (item, result[item]) for item in
+                             result]))
 
 
 def configure_jss(env):
@@ -632,7 +658,7 @@ def configure_jss(env):
     return j
 
 
-def build_menu(j, parent_recipe, recipe, parent_filename, env):
+def build_menu(j, parent_recipe, recipe, parent_filename, env, package_only):
     """Construct the menu for prompting users to create a JSS recipe.
 
     Args:
@@ -642,6 +668,7 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
             recipe template, or as a new() JSSRecipe..
         args: Arguments returned from argparser.
         env: JSSRecipeCreator preferences dict.
+        package_only: boolean, set a package-only recipe
 
     Returns:
         A Menu with all questions configured and ready to ask().
@@ -652,17 +679,25 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
     """
     menu = Menu()
 
+    # set different recipe types (currently .jss and .jss-upload)
+    if package_only:
+        replacement_recipe_type = ".jss-upload."
+    else:
+        replacement_recipe_type = ".jss."
+
     # Filename.
     if not "PKG.RECIPE" in parent_filename.upper():
         raise AttributeError("Recipe must be based on a package recipe!")
+
     default_filename = os.path.basename(
-        parent_filename.replace(".pkg.", ".jss."))
+        parent_filename.replace(".pkg.", replacement_recipe_type))
     menu.add_submenu(Submenu("Recipe Filename", default_filename, False,
                              default=default_filename))
 
     # Identifier
     parent_recipe_id = parent_recipe["Identifier"]
-    default_recipe_id = parent_recipe_id.replace(".pkg.", ".jss.")
+    default_recipe_id = parent_recipe_id.replace(
+        ".pkg.", replacement_recipe_type)
     menu.add_submenu(Submenu("Identifier", default_recipe_id, False,
                              default=default_recipe_id,
                              heading="Recipe Identifier"))
@@ -672,6 +707,8 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
 
     # NAME
     parent_recipe_name = parent_recipe["Input"].get("NAME", "")
+    if not parent_recipe_name:
+        parent_recipe_name = parent_recipe_id.split('.')[-1]
     menu.add_submenu(Submenu("NAME", parent_recipe_name, False,
                              default=parent_recipe_name))
 
@@ -684,24 +721,26 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
     # Use the parent's Minimum version since JSSImporter has no extra
     # version requirements.
     menu.results["MinimumVersion"] = parent_recipe.get("MinimumVersion",
-                                                       "0.4.2")
+                                                       "1.0.0")
 
-    # Policy Template
-    policy_template_options = [template for template in os.listdir(os.curdir)
-                               if "XML" in
-                               os.path.splitext(template)[1].upper()]
-    # Check for a value supplied in the template; then fall back to the
-    # global from above, and barring that, use "".
-    if recipe["Input"].get("POLICY_TEMPLATE"):
-        policy_template_default = recipe["Input"]["POLICY_TEMPLATE"]
-    elif (env.get("Default_Policy_Template") and
-          env["Default_Policy_Template"] in policy_template_options):
-        policy_template_default = env["Default_Policy_Template"]
-    else:
-        policy_template_default = ""
-    menu.add_submenu(Submenu("POLICY_TEMPLATE", policy_template_options, True,
-                             default=policy_template_default,
-                             heading="Policy Template"))
+    # Policy Template (not used in package only recipe)
+    if not package_only:
+        policy_template_options = [template for template in os.listdir(os.curdir)
+                                   if "XML" in
+                                   os.path.splitext(template)[1].upper()]
+
+        # Check for a value supplied in the template; then fall back to the
+        # global from above, and barring that, use "".
+        if recipe["Input"].get("POLICY_TEMPLATE"):
+            policy_template_default = recipe["Input"]["POLICY_TEMPLATE"]
+        elif (env.get("Default_Policy_Template") and
+              env["Default_Policy_Template"] in policy_template_options):
+            policy_template_default = env["Default_Policy_Template"]
+        else:
+            policy_template_default = ""
+        menu.add_submenu(Submenu("POLICY_TEMPLATE", policy_template_options, True,
+                                 default=policy_template_default,
+                                 heading="Policy Template"))
 
     # Categories
     categories = [cat.name for cat in j.Category()]
@@ -709,29 +748,34 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
     menu.add_submenu(Submenu("CATEGORY", categories, True,
                              default=default_pkg_category,
                              heading="Package Category"))
-    default_policy_category = recipe["Input"].get("POLICY_CATEGORY", "")
-    menu.add_submenu(Submenu("POLICY_CATEGORY", categories, True,
-                             default=default_policy_category,
-                             heading="Policy Category"))
+    if not package_only:
+        default_policy_category = recipe["Input"].get("POLICY_CATEGORY", "")
+        menu.add_submenu(Submenu("POLICY_CATEGORY", categories, True,
+                                 default=default_policy_category,
+                                 heading="Policy Category"))
 
     # Scope
-    menu.add_submenu(ScopeSubmenu(recipe, j, env))
+    if not package_only:
+        menu.add_submenu(ScopeSubmenu(recipe, j, env))
 
     # Icon (We only use png).
-    icon_default = parent_recipe["Input"].get("NAME", "Icon") + ".png"
-    icon_options = [icon for icon in os.listdir(os.curdir) if
-                    "PNG" in os.path.splitext(icon)[1].upper()]
-    if icon_default not in icon_options:
-        icon_options.append(icon_default)
-    menu.add_submenu(Submenu("SELF_SERVICE_ICON", icon_options, True, default=icon_default,
-                             heading="Self Service Icon"))
+    if not package_only:
+        icon_default = parent_recipe["Input"].get("NAME", "Icon") + ".png"
+        icon_options = [icon for icon in os.listdir(os.curdir) if
+                        "PNG" in os.path.splitext(icon)[1].upper()]
+        if icon_default not in icon_options:
+            icon_options.append(icon_default)
+        menu.add_submenu(Submenu("SELF_SERVICE_ICON", icon_options, True, default=icon_default,
+                                 heading="Self Service Icon"))
 
     # Self Service description.
-    default_self_service_desc = recipe["Input"].get("DESCRIPTION", "")
-    menu.add_submenu(Submenu("SELF_SERVICE_DESCRIPTION",
-                             default_self_service_desc, True,
-                             default=default_self_service_desc,
-                             heading="Self Service Description"))
+    if not package_only:
+        default_self_service_desc = recipe["Input"].get(
+            "SELF_SERVICE_DESCRIPTION", "")
+        menu.add_submenu(Submenu("SELF_SERVICE_DESCRIPTION",
+                                 default_self_service_desc, True,
+                                 default=default_self_service_desc,
+                                 heading="Self Service Description"))
 
     return menu
 
@@ -756,23 +800,36 @@ def build_argparser(env):
     # template, since most people will want to use one. So, we create a
     # mutually exclusive group. If you don't specify either of the -r or
     # -s options, it uses the default recipe template as specified in
-    # the global above. If you specify both argparse stops execution.
+    # the global above. If you specify both, argparse stops execution.
     # The only other case we need to worry about is a defaulted -r value
     # AND -s being specified on the cmdline. This is tested for in the
     # logic later.
     recipe_template_parser = parser.add_mutually_exclusive_group()
     default_recipe_template = env.get("Default_Recipe_Template", "")
+    package_only_recipe_template = env.get("Package_Only_Recipe_Template", "")
+    default_destination_folder = env.get("Default_Destination_Folder", "")
     recipe_template_parser.add_argument(
         "-r", "--recipe_template", help="Use a recipe template. Defaults to a "
-        "file named %s in the current directory," %
-        default_recipe_template, default=default_recipe_template)
+        "file named %s, or %s for package-only recipes, "
+        "in the Templates directory, " %
+        (default_recipe_template, package_only_recipe_template),
+        default=default_recipe_template)
     recipe_template_parser.add_argument(
         "-s", "--from_scratch", help="Do not use a recipe template; instead, "
         "build a recipe from scratch.", action="store_true")
 
+    parser.add_argument(
+        "-p", "--package_only", help="Create a package-only recipe.",
+        action="store_true")
     parser.add_argument("-a", "--auto", help="Uses default choices for all "
                         "questions that have detected values. Prompts for "
                         "those which don't.", action="store_true")
+    parser.add_argument("-c", "--clear_prefs", help="Clears existing preferences "
+                        "to allow them to be overwritten", action="store_true")
+    parser.add_argument(
+        "-d", "--dest", help="Path (folder) to which to write the recipe. "
+        "Defaults to %s." % default_destination_folder,
+        default=default_destination_folder)
 
     return parser
 
@@ -806,12 +863,13 @@ def get_preferences():
         env = Plist(PREFERENCES)
     else:
         env = Plist()
-        env["Default_Recipe_Template"] = "RecipeTemplate.xml"
-        env["Default_Policy_Template"] = "PolicyTemplate.xml"
-        env["Default_Recipe_Desc_PS"] = " Then, uploads to the JSS."
-        env["Default_Group_Template"] = "SmartGroupTemplate.xml"
+        env["Default_Recipe_Template"] = "Templates/RecipeTemplate.plist"
+        env["Package_Only_Recipe_Template"] = "Templates/RecipeTemplate-package-only.plist"
+        env["Default_Policy_Template"] = "Templates/PolicyTemplate.xml"
+        env["Default_Recipe_Desc_PS"] = " Then, uploads to the Jamf Pro Server."
+        env["Default_Group_Template"] = "Templates/SmartGroupTemplate.xml"
+        env["Default_Destination_Folder"] = "."
         env.write_plist(PREFERENCES)
-
     return env
 
 
@@ -822,16 +880,16 @@ def pprint(data, indent=4):
             pprint(item, indent + 8)
             print
         elif isinstance(data[item], list):
-            print indent * " " + "%15s:" % item
+            print(indent * " " + "%15s:" % item)
             pprint(data[item], indent + 8)
         else:
-            print indent * " " + "%15s: %s" % (item, data[item])
+            print(indent * " " + "%15s: %s" % (item, data[item]))
 
 
 def print_heading(heading, line_char="="):
     """Print a string, followed by a line of chars."""
-    print "\n" + heading
-    print (len(heading) - 1) * line_char
+    print("\n" + heading)
+    print((len(heading) - 1) * line_char)
 
 
 def main():
@@ -843,12 +901,26 @@ def main():
     parser = build_argparser(env)
     args = parser.parse_args()
 
+    # overwrite existing prefs if clear_prefs chosen
+    if args.clear_prefs:
+        try:
+            os.remove(PREFERENCES)
+        except OSError:
+            pass
+        env = get_preferences()
+        sys.exit("Preferences cleared. Please run script again without "
+                 "-c/--clear-prefs option")
+
     # Get AutoPkg configuration settings for python-jss/JSSImporter.
     autopkg_env = Plist(AUTOPKG_PREFERENCES)
     j = configure_jss(autopkg_env)
 
+    # alter default parent recipe for package-only mode
+    if args.package_only and args.recipe_template == env["Default_Recipe_Template"]:
+        args.recipe_template = env["Package_Only_Recipe_Template"]
+
     for parent in args.ParentRecipe:
-        print parent
+        print(parent)
         # Create a JSSRecipe object
         # from_scratch and recipe_template are mutually exclusive
         if args.from_scratch:
@@ -876,24 +948,29 @@ def main():
                 recipe.add_input_var("version")
 
         # Build our interactive menu
-        menu = build_menu(j, parent_recipe, recipe, parent, env)
+        menu = build_menu(j, parent_recipe, recipe, parent, env, args.package_only)
 
         # Run the questions past the user.
-        menu.run(auto=args.auto)
+        menu.run(auto=args.auto, package_only=args.package_only)
 
         print_heading("Results")
         pprint(menu.results)
 
         # Merge the answers with the JSSRecipe.
-        recipe.update(menu.results)
-        recipe.write_plist(menu.results["Recipe Filename"])
+        recipe.update_recipe(menu.results, args.package_only, env.get("Recipe_Comment", ""))
+        dest_path = os.path.join(args.dest, menu.results["Recipe Filename"])
+        print("\nWriting to %s" % dest_path)
+        recipe.write_plist(dest_path)
 
         # Final output.
         print_heading("Lint")
-        print "Checking plist syntax..."
-        subprocess.check_call(["plutil", "-lint",
-                               menu.results["Recipe Filename"]])
-        print
+        print("Checking plist syntax...")
+        try:
+            subprocess.check_call(["plutil", "-lint", dest_path])
+        except subprocess.CalledProcessError:
+            print("Could not find file!")
+        print("\nDon't forget to copy the icon to the recipe's directory,"
+              "and commit your changes to git!\n")
 
 
 if __name__ == "__main__":
