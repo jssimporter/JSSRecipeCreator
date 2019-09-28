@@ -229,8 +229,8 @@ class JSSRecipe(Recipe):
                               "CATEGORY": "",
                               "POLICY_CATEGORY": "",
                               "POLICY_TEMPLATE": "",
-                              "ICON": "",
-                              "DESCRIPTION": ""})
+                              "SELV_SERVICE_ICON": "",
+                              "SELF_SERVICE_DESCRIPTION": ""})
         self["Process"] = [{"Processor": "JSSImporter",
                             "Arguments": {"prod_name": "%NAME%",
                                           "category": "%CATEGORY%",
@@ -238,9 +238,9 @@ class JSSRecipe(Recipe):
                                           "%POLICY_CATEGORY%",
                                           "policy_template":
                                           "%POLICY_TEMPLATE%",
-                                          "self_service_icon": "%ICON%",
+                                          "self_service_icon": "%SELV_SERVICE_ICON%",
                                           "self_service_description":
-                                              "%DESCRIPTION%",
+                                              "%SELF_SERVICE_DESCRIPTION%",
                                           "groups": []}}]
 
     def add_scoping_group(self, group):
@@ -279,7 +279,7 @@ class JSSRecipe(Recipe):
         # Input section
         self["Input"]["NAME"] = update_dict["NAME"]
         if update_dict["POLICY_TEMPLATE"]:
-            self["Input"]["POLICY_TEMPLATE"] = ("%%RECIPE_DIR%%/%s" %
+            self["Input"]["POLICY_TEMPLATE"] = ("%s" %
                                                 update_dict["POLICY_TEMPLATE"])
         # If a blank policy template has been set, don't prepend
         # anything; we actually want nothing!
@@ -287,11 +287,11 @@ class JSSRecipe(Recipe):
             self["Input"]["POLICY_TEMPLATE"] = ""
         self["Input"]["POLICY_CATEGORY"] = update_dict["POLICY_CATEGORY"]
         self["Input"]["CATEGORY"] = update_dict["CATEGORY"]
-        if update_dict["ICON"]:
-            self["Input"]["ICON"] = "%%RECIPE_DIR%%/%s" % update_dict["ICON"]
+        if update_dict["SELF_SERVICE_ICON"]:
+            self["Input"]["SELF_SERVICE_ICON"] = "%s" % update_dict["SELF_SERVICE_ICON"]
         else:
-            self["Input"]["ICON"] = ""
-        self["Input"]["DESCRIPTION"] = update_dict["DESCRIPTION"]
+            self["Input"]["SELF_SERVICE_ICON"] = ""
+        self["Input"]["SELF_SERVICE_DESCRIPTION"] = update_dict["SELF_SERVICE_DESCRIPTION"]
 
         # Handle groups
         for group in update_dict["groups"]:
@@ -574,9 +574,7 @@ class ScopeSubmenu(Submenu):
         else:
             template = template_choice
 
-        # Prepend %RECIPE_DIR% so recipes always know where to find
-        # template.
-        return "%RECIPE_DIR%/" + template
+        return template
 
     def _check_group(self, name):
         """Check for whether a group exists, and if so, if it is smart.
@@ -725,12 +723,12 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env):
                     "PNG" in os.path.splitext(icon)[1].upper()]
     if icon_default not in icon_options:
         icon_options.append(icon_default)
-    menu.add_submenu(Submenu("ICON", icon_options, True, default=icon_default,
+    menu.add_submenu(Submenu("SELF_SERVICE_ICON", icon_options, True, default=icon_default,
                              heading="Self Service Icon"))
 
     # Self Service description.
     default_self_service_desc = recipe["Input"].get("DESCRIPTION", "")
-    menu.add_submenu(Submenu("DESCRIPTION",
+    menu.add_submenu(Submenu("SELF_SERVICE_DESCRIPTION",
                              default_self_service_desc, True,
                              default=default_self_service_desc,
                              heading="Self Service Description"))
@@ -812,14 +810,6 @@ def get_preferences():
         env["Default_Policy_Template"] = "PolicyTemplate.xml"
         env["Default_Recipe_Desc_PS"] = " Then, uploads to the JSS."
         env["Default_Group_Template"] = "SmartGroupTemplate.xml"
-        env["Recipe_Comment"] = (
-            "\nThis AutoPkg recipe was created using JSSRecipeCreator: "
-            "\nhttps://github.com/sheagcraig/JSSRecipeCreator\n\n"
-            "It is meant to be used with JSSImporter: \n"
-            "https://github.com/sheagcraig/JSSImporter\n\n"
-            "For tips on integrating JSSImporter into your Casper "
-            "environment, check out Auto Update Magic:\n"
-            "https://github.com/homebysix/auto-update-magic")
         env.write_plist(PREFERENCES)
 
     return env
@@ -895,7 +885,7 @@ def main():
         pprint(menu.results)
 
         # Merge the answers with the JSSRecipe.
-        recipe.update(menu.results, env.get("Recipe_Comment", ""))
+        recipe.update(menu.results)
         recipe.write_plist(menu.results["Recipe Filename"])
 
         # Final output.
