@@ -1,1 +1,4 @@
 *.pyc
+*.recipe
+*.DS_Store
+Templates/YAML/*
