@@ -251,7 +251,7 @@ class JSSRecipe(Recipe):
                                   "CATEGORY": "",
                                   "POLICY_CATEGORY": "",
                                   "POLICY_TEMPLATE": "",
-                                  "ICON": "",
+                                  "SELF_SERVICE_ICON": "",
                                   "SELF_SERVICE_DESCRIPTION": ""})
             self["Process"] = [{"Processor": "JSSImporter",
                                 "Arguments": {"prod_name": "%NAME%",
@@ -260,7 +260,7 @@ class JSSRecipe(Recipe):
                                               "%POLICY_CATEGORY%",
                                               "policy_template":
                                               "%POLICY_TEMPLATE%",
-                                              "self_service_icon": "%ICON%",
+                                              "self_service_icon": "%SELF_SERVICE_ICON%",
                                               "self_service_description":
                                                   "%SELF_SERVICE_DESCRIPTION%",
                                               "groups": []}}]
@@ -311,10 +311,11 @@ class JSSRecipe(Recipe):
             else:
                 self["Input"]["POLICY_TEMPLATE"] = ""
             self["Input"]["POLICY_CATEGORY"] = update_dict["POLICY_CATEGORY"]
-            if update_dict["ICON"]:
-                self["Input"]["ICON"] = "%%RECIPE_DIR%%/%s" % update_dict["ICON"]
+            if update_dict["SELF_SERVICE_ICON"]:
+                self["Input"]["SELF_SERVICE_ICON"] = ("%%RECIPE_DIR%%/%s"
+                        % update_dict["SELF_SERVICE_ICON"])
             else:
-                self["Input"]["ICON"] = ""
+                self["Input"]["SELF_SERVICE_ICON"] = ""
             self["Input"]["SELF_SERVICE_DESCRIPTION"] = update_dict[
                  "SELF_SERVICE_DESCRIPTION"]
 
@@ -599,9 +600,7 @@ class ScopeSubmenu(Submenu):
         else:
             template = template_choice
 
-        # Prepend %RECIPE_DIR% so recipes always know where to find
-        # template.
-        return "%RECIPE_DIR%/" + template
+        return template
 
     def _check_group(self, name):
         """Check for whether a group exists, and if so, if it is smart.
@@ -766,7 +765,8 @@ def build_menu(j, parent_recipe, recipe, parent_filename, env, package_only):
                         "PNG" in os.path.splitext(icon)[1].upper()]
         if icon_default not in icon_options:
             icon_options.append(icon_default)
-        menu.add_submenu(Submenu("ICON", icon_options, True, default=icon_default,
+        menu.add_submenu(Submenu("SELF_SERVICE_ICON", icon_options, True,
+                                 default=icon_default,
                                  heading="Self Service Icon"))
 
     # Self Service description.
@@ -870,14 +870,6 @@ def get_preferences():
         env["Default_Recipe_Desc_PS"] = " Then, uploads to the Jamf Pro Server."
         env["Default_Group_Template"] = "Templates/SmartGroupTemplate.xml"
         env["Default_Destination_Folder"] = "."
-        env["Recipe_Comment"] = (
-            "\nThis AutoPkg recipe was created using JSSRecipeCreator: "
-            "\nhttps://github.com/jssimporter/JSSRecipeCreator\n\n"
-            "It is meant to be used with JSSImporter: \n"
-            "https://github.com/jssimporter/JSSImporter\n\n"
-            "For tips on integrating JSSImporter into your Jamf Pro "
-            "environment, check out Auto Update Magic:\n"
-            "https://github.com/homebysix/auto-update-magic")
         env.write_plist(PREFERENCES)
     return env
 
