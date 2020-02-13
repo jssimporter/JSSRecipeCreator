@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/autopkg/python
 # Copyright (C) 2014 Shea G Craig
 #
 # This program is free software: you can redistribute it and/or modify
