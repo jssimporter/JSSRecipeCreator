@@ -309,7 +309,7 @@ class JSSRecipe(Recipe):
         if not package_only:
             if update_dict["POLICY_TEMPLATE"]:
                 self["Input"]["POLICY_TEMPLATE"] = (
-                    "%%RECIPE_DIR%%/%s" % update_dict["POLICY_TEMPLATE"])
+                    "%s" % update_dict["POLICY_TEMPLATE"])
             # If a blank policy template has been set, don't prepend
             # anything; we actually want nothing!
             else:
@@ -317,7 +317,7 @@ class JSSRecipe(Recipe):
             self["Input"]["POLICY_CATEGORY"] = update_dict["POLICY_CATEGORY"]
             if update_dict["SELF_SERVICE_ICON"]:
                 self["Input"]["SELF_SERVICE_ICON"] = (
-                    "%%RECIPE_DIR%%/%s" % update_dict["SELF_SERVICE_ICON"])
+                    "%s" % update_dict["SELF_SERVICE_ICON"])
             else:
                 self["Input"]["SELF_SERVICE_ICON"] = ""
             self["Input"]["SELF_SERVICE_DESCRIPTION"] = update_dict[
