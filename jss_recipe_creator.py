@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/autopkg/python
 # Copyright (C) 2014 Shea G Craig
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,11 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""JSSRecipeCreator.py
+"""jss_recipe_creator.py
 
 Quickly create JSS recipes from a template.
 
-usage: JSSRecipeCreator.py [-h] [-r RECIPE_TEMPLATE | -s] [-a] ParentRecipe
+usage: jss_recipe_creator.py [-h] [-r RECIPE_TEMPLATE | -s] [-a] ParentRecipe
 
 positional arguments:
   ParentRecipe          Path to a parent recipe.
@@ -41,11 +41,15 @@ optional arguments:
 """
 
 
+from __future__ import absolute_import
+from __future__ import print_function
 import argparse
 import os.path
 import readline  # pylint: disable=unused-import
 import subprocess
 import sys
+
+from six.moves import input
 
 # pylint: disable=no-name-in-module
 from Foundation import (NSData,
@@ -55,7 +59,7 @@ from Foundation import (NSData,
 # pylint: enable=no-name-in-module
 
 
-sys.path.insert(0, '/Library/Application Support/JSSImporter')
+sys.path.insert(0, '/Library/AutoPkg/JSSImporter')
 
 import jss
 
@@ -66,7 +70,7 @@ AUTOPKG_PREFERENCES = "~/Library/Preferences/com.github.autopkg.plist"
 PREFERENCES = os.path.expanduser(
     "~/Library/Preferences/com.github.jssimporter.JSSRecipeCreator.plist")
 
-__version__ = "1.1.0b2"
+__version__ = "1.2.0b1"
 
 
 class Error(Exception):
@@ -132,7 +136,7 @@ class Plist(dict):
                     error = "Invalid plist file."
                 raise PlistParseError("Can't read %s: %s" % (path, error))
         except ValueError:
-            print("Can't read %s" % (path))
+            print(("Can't read %s" % (path)))
             sys.exit()
 
         return info
@@ -305,19 +309,19 @@ class JSSRecipe(Recipe):
         if not package_only:
             if update_dict["POLICY_TEMPLATE"]:
                 self["Input"]["POLICY_TEMPLATE"] = (
-                     "%%RECIPE_DIR%%/%s" % update_dict["POLICY_TEMPLATE"])
+                    "%s" % update_dict["POLICY_TEMPLATE"])
             # If a blank policy template has been set, don't prepend
             # anything; we actually want nothing!
             else:
                 self["Input"]["POLICY_TEMPLATE"] = ""
             self["Input"]["POLICY_CATEGORY"] = update_dict["POLICY_CATEGORY"]
             if update_dict["SELF_SERVICE_ICON"]:
-                self["Input"]["SELF_SERVICE_ICON"] = ("%%RECIPE_DIR%%/%s"
-                        % update_dict["SELF_SERVICE_ICON"])
+                self["Input"]["SELF_SERVICE_ICON"] = (
+                    "%s" % update_dict["SELF_SERVICE_ICON"])
             else:
                 self["Input"]["SELF_SERVICE_ICON"] = ""
             self["Input"]["SELF_SERVICE_DESCRIPTION"] = update_dict[
-                 "SELF_SERVICE_DESCRIPTION"]
+                "SELF_SERVICE_DESCRIPTION"]
 
             # Handle groups
             for group in update_dict["groups"]:
@@ -427,11 +431,11 @@ class Submenu(object):
             print_heading("%s Menu" % self.heading)
             self.display_options_list(self.options, default=self.default)
 
-            print("\nHit enter to accept default choice."
-                  "\nEnter a number to select from list."
-                  "\nCreate a new %s by entering name/path.\n" % self.heading)
-            choice = raw_input("Please choose a %s: (DEFAULT \'%s\') " %
-                               (self.heading, self.default))
+            print(("\nHit enter to accept default choice."
+                   "\nEnter a number to select from list."
+                   "\nCreate a new %s by entering name/path.\n" % self.heading))
+            choice = input("Please choose a %s: (DEFAULT \'%s\') " %
+                           (self.heading, self.default))
 
             if choice.isdigit() and in_range(int(choice), len(self.options)):
                 result = self.options[int(choice)]
@@ -497,7 +501,7 @@ class ScopeSubmenu(Submenu):
         # Entries should be a dict of name, smart, and
         # template_path values.
         self.results = []
-        if "groups" in recipe_template.jss_importer["Arguments"].keys():
+        if "groups" in list(recipe_template.jss_importer["Arguments"].keys()):
             templated_groups = recipe_template.jss_importer["Arguments"].get(
                 "groups")
             self.results.extend(templated_groups)
@@ -538,7 +542,7 @@ class ScopeSubmenu(Submenu):
                 print("To select an existing group, enter its ID above, or "
                       "its name.")
                 print("To QUIT this menu, hit 'return'. ")
-                choice = raw_input("\nGroup command: ")
+                choice = input("\nGroup command: ")
 
                 # Handle primary group menu choice.
                 if choice.isdigit() and in_range(int(choice),
@@ -559,7 +563,7 @@ class ScopeSubmenu(Submenu):
                 group_type = self._check_group(name)
 
                 if group_type is None:
-                    smart_choice = raw_input(
+                    smart_choice = input(
                         "Should this group be a smart group? (Y|N) ")
                     if smart_choice.upper() == "Y":
                         group_type = self.SMART_GROUP
@@ -583,7 +587,7 @@ class ScopeSubmenu(Submenu):
 
         print("\nChoose a template by selecting an ID, or entering a "
               "filename.\n")
-        template_choice = raw_input(
+        template_choice = input(
             "Select a group template: (DEFAULT '%s') " % default)
 
         if template_choice.isdigit() and in_range(
@@ -634,8 +638,8 @@ class ScopeSubmenu(Submenu):
                 print("Smart Group:")
             else:
                 print("Static Group:")
-            print("\n".join(["    %s: %s" % (item, result[item]) for item in
-                             result]))
+            print(("\n".join(["    %s: %s" % (item, result[item]) for item in
+                              result])))
 
 
 def configure_jss(env):
@@ -879,18 +883,18 @@ def pprint(data, indent=4):
     for item in data:
         if isinstance(data, list):
             pprint(item, indent + 8)
-            print
+            print()
         elif isinstance(data[item], list):
-            print(indent * " " + "%15s:" % item)
+            print((indent * " " + "%15s:" % item))
             pprint(data[item], indent + 8)
         else:
-            print(indent * " " + "%15s: %s" % (item, data[item]))
+            print((indent * " " + "%15s: %s" % (item, data[item])))
 
 
 def print_heading(heading, line_char="="):
     """Print a string, followed by a line of chars."""
-    print("\n" + heading)
-    print((len(heading) - 1) * line_char)
+    print(("\n" + heading))
+    print(((len(heading) - 1) * line_char))
 
 
 def main():
@@ -960,7 +964,7 @@ def main():
         # Merge the answers with the JSSRecipe.
         recipe.update_recipe(menu.results, args.package_only, env.get("Recipe_Comment", ""))
         dest_path = os.path.join(args.dest, menu.results["Recipe Filename"])
-        print("\nWriting to %s" % dest_path)
+        print(("\nWriting to %s" % dest_path))
         recipe.write_plist(dest_path)
 
         # Final output.
