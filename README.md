@@ -1,13 +1,7 @@
-JSSRecipeCreator
+JSSRecipeCreator is no longer maintained
 =================
 
-
-This script allows one to rapidly make JSS recipes based on a set of template files.
-
-Instructions for use
---------------------
-
-**For details on how to use JSSRecipeCreator, please visit our [Wiki](https://github.com/jssimporter/JSSRecipeCreator/wiki).**
+**For archived information about JSSRecipeCreator, please visit our [Wiki](https://github.com/jssimporter/JSSRecipeCreator/wiki).**
 
 
 Acknowledgements
